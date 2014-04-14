@@ -57,7 +57,7 @@ class EasyConfig(object):
             if section in self._config and key in self._config[section]:
                 callback(self._config[section][key])
 
-    def update(self, section, key, value, batch=False):
+    def update(self, section, key, value, notify=True, batch=False):
         """
         Sets the value for the given section and key.
         Notifies any listeners bound to the same section and key.
@@ -70,18 +70,21 @@ class EasyConfig(object):
         self._config[section][key] = value
 
         # notifies any listeners bound to this key
-        if section in self._callbacks and key in self._callbacks[section]:
-            for callback in self._callbacks[section][key]:
-                callback(value)
+        if notify:
+            if section in self._callbacks and key in self._callbacks[section]:
+                for callback in self._callbacks[section][key]:
+                    callback(value)
 
         # writes the updated config
         if not batch:
             self.persist()
 
-    def updateBatch(self, section, config):
+    def updateBatch(self, section, config, notify=True, persist=True):
         for key, value in config.iteritems():
-            self.update(section, key, value, batch=True)
-        self.persist()
+            self.update(section, key, value, notify=notify, batch=True)
+
+        if persist:
+            self.persist()
 
     def persist(self):
         """
@@ -107,10 +110,15 @@ class EasyConfig(object):
         the existing config dictionary. If False, the existing config will
         be completely replaced.
 
-        Note: callbacks ARE called for each key.
+        If notify_all is True, callbacks are called for each key.
         """
         with open(self._filepath, 'rb') as f:
-            new_config = self._decode(f.read())
+            config_contents = f.read()
+            new_config = {}
+            if len(config_contents):
+                try:
+                    new_config = self._decode(config_contents)
+                except:pass
 
             # if update_existing_config, update instead of replace
             if update_existing_config:

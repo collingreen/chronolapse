@@ -55,8 +55,11 @@ except ImportError:
 
 TODO:
     X replace optparse with argparse
-    - remove all xml everywhere
-    - remove all pickle everywhere
+    X remove all xml everywhere
+    X add sequential/integer filenames to config persistence
+    - make sequential/integer filename options work
+    - VERIFY all fields get saved and updated correctly
+    X remove all pickle everywhere
 
     X use logging module
     - remove VideoCapture dependency - pyopencv only
@@ -67,6 +70,12 @@ TODO:
     X add file menu -> quit
     - add donate menu
     - add donate level in title bar
+
+
+    - test autostart
+    - test all functionality
+    - move and reimplement version check - use google analytics
+    - update icons
 
     - clean up windows branching code
     - clean up code everywhere possible
@@ -105,6 +114,9 @@ class ChronoFrame(chronoFrame):
 
         # parse saved configuration file
         self.loadConfiguration()
+
+        # set up the rest of the application
+        self.setup()
 
     def parseArguments(self):
 
@@ -148,11 +160,52 @@ class ChronoFrame(chronoFrame):
         logging.debug("Parsed command line options")
 
     def _bindUI(self, field, key, section='chronolapse'):
+        """
+        Creates a two way binding for the UI element and the given
+        section/key in the config.
+        """
         logging.debug("Binding %s[%s] to %s" % (section, key, str(field)))
-        self.config.add_listener(section, key, lambda x: field.SetValue(str(x)))
+        if hasattr(field, 'SetValue'):
 
-    def updateConfig(self, config, section='chronolapse'):
-        self.config.updateBatch(section, config)
+
+            # if field is a checkbox, treat it differently
+            if hasattr(field, 'IsChecked'):
+                # on checkbox events, update the config
+                self.Bind(wx.EVT_CHECKBOX,
+                        lambda event: self.updateConfig(
+                                        {key: field.IsChecked()}, from_ui=True),
+                        field)
+
+            else:
+                # on text events, update the config
+                self.Bind(wx.EVT_TEXT,
+                        lambda event: self.updateConfig(
+                                        {key: field.GetValue()}, from_ui=True),
+                        field)
+
+            # on config changes, update the UI
+            self.config.add_listener(
+                section, key, lambda x: field.SetValue(x))
+
+        elif hasattr(field, 'SetStringSelection'):
+
+            # on Selection
+            self.Bind(wx.EVT_COMBOBOX,
+                    lambda event: self.updateConfig(
+                            {key: field.GetStringSelection()}, from_ui=True),
+                    field)
+
+            # on config changes, update the UI
+            self.config.add_listener(
+                section, key, lambda x: field.SetStringSelection(str(x)))
+
+    def updateConfig(self, config, section='chronolapse', from_ui=False):
+
+        if from_ui:
+            logging.debug("Updating config from UI: %s" % str(config))
+        else:
+            logging.debug("Updating config: %s" % str(config))
+        self.config.updateBatch(section, config, notify=not from_ui)
 
     def getConfig(self, key, section='chronolapse', default=None):
         return self.config.get(section, key, default=default)
@@ -163,8 +216,9 @@ class ChronoFrame(chronoFrame):
 
         self.config = EasyConfig(self.settings.config_file, defaults={
             'chronolapse': {
-                'frequency': 60,
+                'frequency': '60',
 
+                'use_screenshot': True,
                 'screenshot_timestamp': True,
                 'screenshot_save_folder': 'screenshots',
                 'screenshot_prefix': 'screen_',
@@ -176,28 +230,38 @@ class ChronoFrame(chronoFrame):
                 'screenshot_subsection_left': '0',
                 'screenshot_subsection_width': '800',
                 'screenshot_subsection_height': '600',
-##
-##                'webcamtimestamp':  True,
-##                'webcamsavefolder':     'webcam',
-##                'webcamprefix':     'cam_',
-##                'webcamformat':     'jpg',
-##                'webcamresolution': '800, 600',
-##
-##                'pipmainfolder':    '',
-##                'pippipfolder':     '',
-##
-##                'videosourcefolder':    '',
-##                'videooutputfolder':    '',
-##
-##                'lastupdate': time.strftime('%Y-%m-%d')
 
+                'use_webcam': False,
+                'webcam_timestamp': True,
+                'webcam_save_folder': 'webcam',
+                'webcam_prefix': 'cam_',
+                'webcam_format': 'jpg',
+                'webcam_resolution': '800, 600',
 
+                'filename_format': 'timestamp',
+
+                'pip_main_folder': '',
+                'pip_pip_folder': '',
+                'pip_output_folder': '',
+                'pip_size': 'Small',
+                'pip_position': 'Top-Right',
+                'pip_ignore_unmatched': True,
+
+                'video_source_folder': '',
+                'video_output_folder': '',
+                'video_format': '',
+                'video_codec': 'wmv2',
+                'video_framerate': '10',
+                'mencoder_path': 'mencoder',
+
+                'audio_source_video': '',
+                'audio_source': '',
+                'audio_output_folder': '',
+
+                'last_update': time.strftime('%Y-%m-%d'),
+                'update_check_frequency': 604800
             }
         })
-
-        # bind all the ui fields to the config manager
-        logging.debug("Binding events")
-        self._bindUI(self.frequencytext, 'frequency')
 
         # look for existing config file - load it if possible
         if os.path.exists(self.settings.config_file):
@@ -213,36 +277,92 @@ class ChronoFrame(chronoFrame):
                 )
                 self.Close()
 
+        # bind all the ui fields to the config manager
+        logging.debug("Binding events")
+        self._bindUI(self.frequencytext, 'frequency')
+        self._bindUI(self.screenshotcheck, 'uses_screenshot')
+        self._bindUI(self.webcamcheck, 'uses_webcam')
 
-    def todo(self):
+        self._bindUI(self.pipmainimagefoldertext, 'pip_main_folder')
+        self._bindUI(self.pippipimagefoldertext, 'pip_pip_folder')
+        self._bindUI(self.pipoutputimagefoldertext, 'pip_output_folder')
+        self._bindUI(self.pipsizecombo, 'pip_size')
+        self._bindUI(self.pippositioncombo, 'pip_position')
+        self._bindUI(self.pipignoreunmatchedcheck, 'pip_ignore_unmatched')
 
+        self._bindUI(self.videosourcetext, 'video_source_folder')
+        self._bindUI(self.videodestinationtext, 'video_output_folder')
+        self._bindUI(self.videocodeccombo, 'video_codec')
+        self._bindUI(self.videoframeratetext, 'video_framerate')
+        self._bindUI(self.mencoderpathtext, 'mencoder_path')
+
+        self._bindUI(self.audiosourcevideotext, 'audio_source_video')
+        self._bindUI(self.audiosourcetext, 'audio_source')
+        self._bindUI(self.audiooutputfoldertext, 'audio_output_folder')
+
+
+        # create custom binding for filename format
+        self.Bind(wx.EVT_RADIOBUTTON ,
+                    lambda event: self.updateConfig(
+                        {'filename_format':
+                            'timestamp'
+                                if self.filename_format_timestamp.GetValue()
+                                else 'sequential'},
+                        from_ui=True),
+                    self.filename_format_timestamp)
+        self.Bind(wx.EVT_RADIOBUTTON ,
+                    lambda event: self.updateConfig(
+                        {'filename_format':
+                            'timestamp'
+                                if self.filename_format_timestamp.GetValue()
+                                else 'sequential'},
+                        from_ui=True),
+                    self.filename_format_sequential)
+
+        # on config changes, update the UI
+        self.config.add_listener(
+            'chronolapse',
+            'filename_format',
+            lambda x:
+                self.filename_format_timestamp.SetValue(x == 'timestamp')
+        )
+        self.config.add_listener(
+            'chronolapse',
+            'filename_format',
+            lambda x:
+                self.filename_format_sequential.SetValue(x == 'sequential')
+        )
+
+    def setup(self):
 
         # bind OnClose method
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-        # bind schedule information
-        self.Bind(wx.EVT_DATE_CHANGED, self.startDateChanged, self.startdate)
-        self.Bind(wx.EVT_DATE_CHANGED, self.endDateChanged, self.enddate)
-        self.Bind(masked.EVT_TIMEUPDATE, self.startTimeChanged, self.starttime)
-        self.Bind(masked.EVT_TIMEUPDATE, self.endTimeChanged, self.endtime)
+        # save path to folder where chronolapse is currently running
+        self.CHRONOLAPSEPATH = os.path.dirname( os.path.abspath(sys.argv[0]))
 
+        # set X to close to taskbar -- windows only
+        # http://code.activestate.com/recipes/475155/
+        self.TBFrame = TaskBarFrame(None, self, -1, " ", self.CHRONOLAPSEPATH)
+        self.TBFrame.Show(False)
 
-        self.starttimer = Timer(self.startTimerCallBack)
-        self.endtimer = Timer(self.endTimerCallBack)
-        self.schedulestartdate = ''
-        self.schedulestarttime = ''
-        self.scheduleenddate = ''
-        self.scheduleendtime = ''
+        # webcam
+        self.cam = None
+
+        # image countdown
+        self.countdown = float(self.getConfig('frequency'))
+
+        # create timer
+        self.timer = Timer(self.timerCallBack)
+
 
         # constants
         # TODO: remove all of these - put everything in config files
         self.VERSION = VERSION
-        self.CONFIGFILE = 'chronolapse.config'
         self.FILETIMEFORMAT = '%Y-%m-%d_%H-%M-%S'
         self.TIMESTAMPFORMAT = '%Y-%m-%d %H:%M:%S'
         self.DOCFILE = 'manual.html'
         self.VERSIONCHECKPATH = 'http://chronolapse.com/versioncheck/'
-        self.UPDATECHECKFREQUENCY = 604800      # 1 week, in seconds
 
         # fill in codecs available
         # TODO: make this better
@@ -251,66 +371,30 @@ class ChronoFrame(chronoFrame):
         # fill in formats
         #self.videoformatcombo.SetItems(['divx4', 'xvid', 'ffmpeg', 'msmpeg4'])
 
-        # save file path
-        self.CHRONOLAPSEPATH = os.path.dirname( os.path.abspath(sys.argv[0]))
+        # check version
+        self.checkVersion()
 
 
-        if ONWINDOWS and os.path.isfile( os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico')):
-            self.SetIcon(wx.Icon(os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico'), wx.BITMAP_TYPE_ICO))
-        elif not ONWINDOWS and os.path.isfile( os.path.join(self.CHRONOLAPSEPATH, 'chronolapse_24.ico')):
-            self.SetIcon(wx.Icon(os.path.join(self.CHRONOLAPSEPATH, 'chronolapse_24.ico'), wx.BITMAP_TYPE_ICO))
+        # TODO: fix this mess
+        if (ON_WINDOWS and os.path.isfile(
+                        os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico'))):
+            self.SetIcon(wx.Icon(
+                        os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico'),
+                        wx.BITMAP_TYPE_ICO))
+        elif (not ON_WINDOWS
+                and os.path.isfile(
+                    os.path.join(self.CHRONOLAPSEPATH, 'chronolapse_24.ico'))):
+            self.SetIcon(wx.Icon(
+                    os.path.join(self.CHRONOLAPSEPATH, 'chronolapse_24.ico'),
+                    wx.BITMAP_TYPE_ICO))
 
             # disable webcams for now
             self.webcamcheck.Disable()
             self.configurewebcambutton.Disable()
 
         else:
-            logging.debug( 'Could not find %s' % os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico'))
-
-        # set X to close to taskbar -- windows only
-        # http://code.activestate.com/recipes/475155/
-        self.TBFrame = TaskBarFrame(None, self, -1, " ", self.CHRONOLAPSEPATH)
-        self.TBFrame.Show(False)
-
-        # option defaults
-        self.options = {
-
-            'font': wx.Font(22,
-                        wx.FONTFAMILY_DEFAULT,
-                        wx.FONTSTYLE_NORMAL,
-                        wx.FONTWEIGHT_NORMAL),
-            'fontdata': wx.FontData(),
-
-
-            'webcamtimestamp':  True,
-            'webcamsavefolder':     'webcam',
-            'webcamprefix':     'cam_',
-            'webcamformat':     'jpg',
-            'webcamresolution': '800, 600',
-
-            'pipmainfolder':    '',
-            'pippipfolder':     '',
-
-            'videosourcefolder':    '',
-            'videooutputfolder':    '',
-
-            'lastupdate': time.strftime('%Y-%m-%d')
-        }
-
-        # load config
-        self.parseConfig()
-
-        # webcam
-        self.cam = None
-
-        # image countdown
-        self.countdown = 60.0
-
-        # create timer
-        self.timer = Timer(self.timerCallBack)
-
-        # check version
-        self.checkVersion()
+            logging.debug( 'Could not find %s' %
+                        os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico'))
 
         # autostart
         if self.settings.autostart:
@@ -326,14 +410,10 @@ class ChronoFrame(chronoFrame):
             self.Show(*args, **kwargs)
 
     def OnClose(self, event):
-        # save config before closing
-        self.saveConfig()
-
         try:
             if hasattr(self, 'TBFrame') and self.TBFrame:
                 self.TBFrame.kill(event)
-        except:
-            pass
+        except: pass
 
         event.Skip()
 
@@ -342,7 +422,8 @@ class ChronoFrame(chronoFrame):
         # set countdown
         self.countdown = float(self.frequencytext.GetValue())
 
-        # start timer - if frequency < 1 second, use small increments, otherwise, 1 second will be plenty fast
+        # start timer - if frequency < 1 second, use small increments
+        # otherwise, 1 second will be plenty fast
         if self.countdown < 1:
             self.timer.Start( self.countdown * 1000)
         else:
@@ -416,289 +497,20 @@ class ChronoFrame(chronoFrame):
         logging.debug('Capturing - ' + filename)
 
         # if screenshots
-        if self.screenshotcheck.IsChecked():
+        if self.getConfig('use_screenshot'):
             # take screenshot
             self.saveScreenshot(filename)
 
         # if webcam
-        if self.webcamcheck.IsChecked():
+        if self.getConfig('use_webcam'):
             # take webcam shot
             self.saveWebcam(filename)
 
         return filename
 
-    def parseConfig(self):
-
-        if os.path.isfile( os.path.join(self.CHRONOLAPSEPATH, self.CONFIGFILE)):
-            try:
-                configfile = open( os.path.join(self.CHRONOLAPSEPATH, self.CONFIGFILE), 'rb')
-                config = cPickle.load(configfile)
-            except Exception, e:
-                logging.debug(str(e))
-                self.showWarning('Config Error', 'The Chronolapse config file is corrupted. Your settings have been lost')
-                f = open(os.path.join(self.CHRONOLAPSEPATH, self.CONFIGFILE), 'w+b')
-                f.close()
-
-            try:
-                self.frequencytext.SetValue(config['frequency'])
-                self.screenshotcheck.SetValue(config['usescreenshot'])
-                self.webcamcheck.SetValue(config['usewebcam'])
-                self.forcecaptureframestext.SetValue(str(config['forcecaptureframes']))
-            except Exception, e:
-                logging.debug(str(e))
-
-            try:
-                self.resizewidthtext.SetValue(config['resizewidth'])
-                self.resizeheighttext.SetValue(config['resizeheight'])
-                self.resizesourcetext.SetValue(config['resizesourcefolder'])
-                self.resizeoutputtext.SetValue(config['resizeoutputfolder'])
-
-                for opt in self.rotatecombo.GetStrings():
-                    if opt == config['rotateangle']:
-                        self.rotatecombo.SetValue(opt)
-                        break
-
-            except Exception, e:
-                logging.debug(str(e))
-
-            try:
-                self.pipmainimagefoldertext.SetValue(config['pipmainsourcefolder'])
-                self.pippipimagefoldertext.SetValue(config['pippipsourcefolder'])
-                self.pipoutputimagefoldertext.SetValue(config['pipoutputfolder'])
-                self.pipsizecombo.SetStringSelection(config['pipsize'])
-                self.pippositioncombo.SetStringSelection(config['pipposition'])
-                self.pipignoreunmatchedcheck.SetValue(config['pipignoreunmatched'])
-            except Exception, e:
-                logging.debug(str(e))
-
-            try:
-                self.videosourcetext.SetValue(config['videosourcefolder'])
-                self.videodestinationtext.SetValue(config['videooutputfolder'])
-                #self.videoformatcombo.SetStringSelection(config['videoformat'])
-                self.videocodeccombo.SetStringSelection(config['videocodec'])
-                self.videoframeratetext.SetValue(config['videoframerate'])
-                self.mencoderpathtext.SetValue(config['mencoderpath'])
-            except Exception, e:
-                logging.debug(str(e))
-
-            try:
-                self.audiosourcevideotext.SetValue(config['audiosourcevideo'])
-                self.audiosourcetext.SetValue(config['audiosource'])
-                self.audiooutputfoldertext.SetValue(config['audiooutputfolder'])
-            except Exception, e:
-                logging.debug(str(e))
-
-            try:
-                # copy self.options values over for program use
-                for key in self.options.keys():
-                    if key in config:
-                        self.options[key] = config[key]
-
-                # special behaviour
-
-                # font
-                if config['fontfamily'] == 'decorative':
-                    fam = wx.FONTFAMILY_DECORATIVE
-                elif config['fontfamily'] == 'roman':
-                    fam = wx.FONTFAMILY_ROMAN
-                elif config['fontfamily'] == 'script':
-                    fam = wx.FONTFAMILY_SCRIPT
-                elif config['fontfamily'] == 'swiss':
-                    fam = wx.FONTFAMILY_SWISS
-                elif config['fontfamily'] == 'modern':
-                    fam = wx.FONTFAMILY_MODERN
-                elif config['fontfamily'] == 'teletype':
-                    fam = wx.FONTFAMILY_TELETYPE
-                else:
-                    fam = wx.FONTFAMILY_DEFAULT
-
-                if config['fontweight'] == 'bold':
-                    weight = wx.FONTWEIGHT_BOLD
-                elif config['fontweight'] == 'light':
-                    weight = wx.FONTWEIGHT_LIGHT
-                else:
-                    weight = wx.FONTWEIGHT_NORMAL
-
-                if config['fontstyle'] == 'italic':
-                    style = wx.FONTSTYLE_ITALIC
-                elif config['fontstyle'] == 'slant':
-                    style = wx.FONTSTYLE_SLANT
-                else:
-                    style = wx.FONTSTYLE_NORMAL
-
-                font = wx.Font(config['fontsize'], fam, style, weight, config['fontunderline'], config['fontname'])
-                self.options['font'] = font
-
-                data = wx.FontData()
-                color = wx.Colour()
-                color.SetRGB(config['fontcolor'])
-
-                data.SetColour(color)
-                self.options['fontdata'] = data
-
-                self.fontexampletext.SetValue('Font: %s %d pt' % (font.GetFaceName(), font.GetPointSize()))
-                self.fontexampletext.SetFont(font)
-                self.fontexampletext.SetForegroundColour(color)
-
-            except Exception, e:
-                logging.debug(str(e))
-
-        else: # not found
-            configfile = open(os.path.join(self.CHRONOLAPSEPATH, self.CONFIGFILE), 'wb')
-
-            # OS specific defaults
-            if ONWINDOWS:
-                mencoderpath = os.path.join(self.CHRONOLAPSEPATH, 'mencoder.exe')
-            else:
-                mencoderpath = 'mencoder'
-
-            # create defaults
-            config = {
-                'frequency':        '60',
-                'usescreenshot':   True,
-                'usewebcam':        False,
-                'forcecaptureframes':   '1',
-
-                'fontfamily':       'roman',
-                'fontsize':         14,
-                'fontunderline':    False,
-                'fontname':         'Arial',
-                'fontstyle':        'normal',
-                'fontweight':       'normal',
-                'fontcolor':        12632256,   # default to silver
-
-                'resizesourcefolder':   '',
-                'resizeoutputfolder':   '',
-                'resizewidth':          '800',
-                'resizeheight':         '600',
-                'rotateangle':          '0',
-
-                'pipmainsourcefolder': '',
-                'pippipsourcefolder': '',
-                'pipoutputfolder':  '',
-                'pipsize':          'Small',
-                'pipposition':      'Top-Right',
-                'pipignoreunmatched':True,
-
-                'videosourcefolder':    '',
-                'videooutputfolder':    '',
-                'videoformat':          '',
-                'videocodec':           'wmv2',
-                'videoframerate':       '10',
-                'mencoderpath':         str(mencoderpath),
-
-                'audiosourcevideo':     '',
-                'audiosource':          '',
-                'audiooutputfolder':    ''
-            }
-
-            # pickle it
-            cPickle.dump(config, configfile)
-            configfile.close()
-
-            # try again
-            self.parseConfig()
-
-    def saveConfig(self):
-        try:
-
-            # get all the options
-            config = {
-                'frequency':            self.frequencytext.GetValue(),
-                'usescreenshot':        self.screenshotcheck.GetValue(),
-                'usewebcam':            self.webcamcheck.GetValue(),
-                'forcecaptureframes':   self.forcecaptureframestext.GetValue(),
-
-                'resizesourcefolder':   self.resizesourcetext.GetValue(),
-                'resizeoutputfolder':   self.resizeoutputtext.GetValue(),
-                'resizewidth':          self.resizewidthtext.GetValue(),
-                'resizeheight':         self.resizeheighttext.GetValue(),
-                'rotateangle':          self.rotatecombo.GetValue(),
-
-                'pipmainsourcefolder':  self.pipmainimagefoldertext.GetValue(),
-                'pippipsourcefolder':   self.pippipimagefoldertext.GetValue(),
-                'pipoutputfolder':      self.pipoutputimagefoldertext.GetValue(),
-                'pipsize':              self.pipsizecombo.GetStringSelection(),
-                'pipposition':          self.pippositioncombo.GetStringSelection(),
-                'pipignoreunmatched':   self.pipignoreunmatchedcheck.GetValue(),
-
-                'videosourcefolder':    self.videosourcetext.GetValue(),
-                'videooutputfolder':    self.videodestinationtext.GetValue(),
-                #'videoformat':          self.videoformatcombo.GetStringSelection(),
-                'videocodec':           self.videocodeccombo.GetStringSelection(),
-                'videoframerate':       self.videoframeratetext.GetValue(),
-                'mencoderpath':         self.mencoderpathtext.GetValue(),
-
-                'audiosourcevideo':     self.audiosourcevideotext.GetValue(),
-                'audiosource':          self.audiosourcetext.GetValue(),
-                'audiooutputfolder':    self.audiooutputfoldertext.GetValue()
-
-
-            }
-
-            # append to self.options
-            for key, value in self.options.iteritems():
-                config[key] = value
-
-            # special behaviour
-
-            # font
-            config['fontname'] = config['font'].GetFaceName()
-
-            fam = config['font'].GetFamily()
-            if fam == wx.FONTFAMILY_DECORATIVE:
-                config['fontfamily'] = 'decorative'
-            elif fam == wx.FONTFAMILY_ROMAN:
-                config['fontfamily'] = 'roman'
-            elif fam == wx.FONTFAMILY_SCRIPT:
-                config['fontfamily'] = 'script'
-            elif fam == wx.FONTFAMILY_SWISS:
-                config['fontfamily'] = 'swiss'
-            elif fam == wx.FONTFAMILY_MODERN:
-                config['fontfamily'] = 'modern'
-            elif fam == wx.FONTFAMILY_TELETYPE:
-                config['fontfamily'] = 'teletype'
-            else:
-                config['fontfamily'] = 'default'
-
-            weight = config['font'].GetWeight()
-            if weight == wx.FONTWEIGHT_BOLD:
-                config['fontweight'] = 'bold'
-            elif weight == wx.FONTWEIGHT_LIGHT:
-                config['fontweight'] = 'light'
-            else:
-                config['fontweight'] = 'normal'
-
-            style = config['font'].GetStyle()
-            if style == wx.FONTSTYLE_ITALIC:
-                config['fontstyle'] = 'italic'
-            elif style == wx.FONTSTYLE_SLANT:
-                config['fontstyle'] = 'slant'
-            else:
-                config['fontstyle'] = 'normal'
-
-            config['fontsize'] = config['font'].GetPointSize()
-            config['fontunderline'] = config['font'].GetUnderlined()
-            config['fontsize'] = config['font'].GetPointSize()
-
-            color = config['fontdata'].GetColour()
-            config['fontcolor'] = color.GetRGB()
-
-            del config['font']
-            del config['fontdata']
-
-
-            # pickle it
-            configfile = file(os.path.join(self.CHRONOLAPSEPATH, self.CONFIGFILE), 'wb')
-            cPickle.dump(config, configfile)
-
-        except Exception, e:
-            logging.error(
-                "Error: failed to save options to config file: %s" % repr(e))
-
     def initCam(self, devnum=0):
         if self.cam is None:
-            if ONWINDOWS:
+            if ON_WINDOWS:
                 try:
                     self.cam = Device(devnum,0)
 
@@ -735,9 +547,9 @@ class ChronoFrame(chronoFrame):
         rect = None
         if self.getConfig('screenshot_subsection'):
             if (self.getConfig('screenshot_subsection_top') > 0 and
-                self.getConfig('screenshot_subsection_left'] > 0 and
-                self.getConfig('screenshot_subsection_width'] > 0 and
-                self.getConfig('screenshot_subsection_height'] > 0):
+                self.getConfig('screenshot_subsection_left') > 0 and
+                self.getConfig('screenshot_subsection_width') > 0 and
+                self.getConfig('screenshot_subsection_height') > 0):
                 rect = wx.Rect(
                         int(self.getConfig('screenshot_subsection_top')),
                         int(self.getConfig('screenshot_subsection_left')),
@@ -837,17 +649,17 @@ class ChronoFrame(chronoFrame):
             img.SaveFile(fileName, wx.BITMAP_TYPE_JPEG)
 
     def saveWebcam(self, filename):
-        timestamp = self.options['webcamtimestamp']
-        folder = self.options['webcamsavefolder']
-        prefix = self.options['webcamprefix']
-        format = self.options['webcamformat']
+        timestamp = self.getConfig('webcam_timestamp')
+        folder = self.getConfig('webcam_save_folder')
+        prefix = self.getConfig('webcam_prefix')
+        file_format = self.getConfig('webcam_format')
 
-        self.takeWebcam(filename, folder, prefix, format, timestamp)
+        self.takeWebcam(filename, folder, prefix, file_format, timestamp)
 
     def takeWebcam(self, filename, folder, prefix, format='jpg', usetimestamp=False):
 
         if self.cam is None:
-            logging.debug('takeWebcam called with no camera')
+            logging.warning('takeWebcam called with no camera')
             try:
                 self.initCam()
             except:
@@ -855,7 +667,7 @@ class ChronoFrame(chronoFrame):
 
         filepath = os.path.join(folder,"%s%s.%s" % (prefix, filename, format))
 
-        if ONWINDOWS:
+        if ON_WINDOWS:
             if usetimestamp:
                 self.cam.saveSnapshot(filepath, quality=80, timestamp=1)
             else:
@@ -954,28 +766,31 @@ class ChronoFrame(chronoFrame):
 
         dlg.Destroy()
 
-    def webcamConfigurePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def webcamConfigurePressed(self, event):
         dlg = WebcamConfigDialog(self)
 
         if dlg.hascam:
             # set current options in dlg
-            dlg.webcamtimestampcheck.SetValue(self.options['webcamtimestamp'])
-            dlg.webcamresolutioncombo.SetStringSelection(self.options['webcamresolution'])
-            dlg.webcamprefixtext.SetValue(self.options['webcamprefix'])
-            dlg.webcamsavefoldertext.SetValue(self.options['webcamsavefolder'])
-            dlg.webcamformatcombo.SetStringSelection(self.options['webcamformat'])
+            dlg.webcamtimestampcheck.SetValue(
+                                            self.getConfig('webcam_timestamp'))
+            dlg.webcamresolutioncombo.SetStringSelection(
+                                            self.getConfig('webcam_resolution'))
+            dlg.webcamprefixtext.SetValue(self.getConfig('webcam_prefix'))
+            dlg.webcamsavefoldertext.SetValue(
+                                        self.getConfig('webcam_save_folder'))
+            dlg.webcamformatcombo.SetStringSelection(
+                                                self.getConfig('webcam_format'))
 
             if dlg.ShowModal() == wx.ID_OK:
 
                 # save dialog info
-                self.options['webcamtimestamp'] = dlg.webcamtimestampcheck.IsChecked()
-                self.options['webcamresolution'] = dlg.webcamresolutioncombo.GetStringSelection()
-                self.options['webcamprefix'] = dlg.webcamprefixtext.GetValue()
-                self.options['webcamsavefolder'] = dlg.webcamsavefoldertext.GetValue()
-                self.options['webcamformat'] = dlg.webcamformatcombo.GetStringSelection()
-
-                # save to file
-                self.saveConfig()
+                self.updateConfig({
+                    'webcam_timestamp': dlg.webcamtimestampcheck.IsChecked(),
+                    'webcam_resolution': dlg.webcamresolutioncombo.GetStringSelection(),
+                    'webcam_prefix': dlg.webcamprefixtext.GetValue(),
+                    'webcam_save_folder': dlg.webcamsavefoldertext.GetValue(),
+                    'webcam_format': dlg.webcamformatcombo.GetStringSelection()
+                })
 
         dlg.Destroy()
 
@@ -985,14 +800,22 @@ class ChronoFrame(chronoFrame):
         if text == 'Start Capture':
 
             # check that screenshot and webcam folders are available
-            if self.screenshotcheck.GetValue() and not os.access(self.getConfig('screenshot_save_folder'), os.W_OK):
+            if (self.getConfig('use_screenshot')
+                and not os.access(
+                        self.getConfig('screenshot_save_folder'), os.W_OK) ):
                 self.showWarning('Cannot Write to Screenshot Folder',
-                'Error: Cannot write to screenshot folder %s. Please add write permission and try again.'%self.getConfig('screenshot_save_folder'))
+                'Error: Cannot write to screenshot folder %s. Please add '
+                + 'write permission and try again.' %
+                    self.getConfig('screenshot_save_folder'))
                 return False
 
-            if self.webcamcheck.GetValue() and not os.access(self.options['webcamsavefolder'], os.W_OK):
+            if (self.getConfig('use_webcam')
+                    and not os.access(
+                        self.getConfig('webcam_save_folder'), os.W_OK) ):
                 self.showWarning('Cannot Write to Webcam Folder',
-                'Error: Cannot write to webcam folder %s. Please add write permission and try again.'%self.options['webcamsavefolder'])
+                'Error: Cannot write to webcam folder %s. Please add '
+                + 'write permission and try again.' %
+                    self.getConfig('webcam_save_folder'))
                 return False
 
             # disable  config buttons, frequency
@@ -1006,12 +829,12 @@ class ChronoFrame(chronoFrame):
             self.startbutton.SetLabel('Stop Capture')
 
             # if webcam set, initialize webcam - use resolution setting
-            if self.webcamcheck.IsChecked():
+            if self.getConfig('use_webcam'):
                 # initialize webcam
                 self.initCam()
 
             # start timer
-            if float(self.frequencytext.GetValue()) > 0:
+            if float(self.getConfig('frequency')) > 0:
                 self.startTimer()
 
         elif text == 'Stop Capture':
@@ -1029,43 +852,35 @@ class ChronoFrame(chronoFrame):
             # stop timer
             self.stopTimer()
 
-    def forceCapturePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def forceCapturePressed(self, event):
         # save a capture right now
         self.capture()
 
-    def pipMainImageBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def pipMainImageBrowsePressed(self, event):
         path = self.dirBrowser('Select folder containing main images',
                     self.pipmainimagefoldertext.GetValue())
 
         if path != '':
-            self.options['pipmainfolder'] = path
-            self.pipmainimagefoldertext.SetValue(path)
+            self.updateConfig({'pip_main_folder': path})
 
-            self.saveConfig()
-
-    def pipPipImageBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def pipPipImageBrowsePressed(self, event):
         path = self.dirBrowser('Select folder containing PIP images',
-                    self.pippipimagefoldertext.GetValue())
+                                        self.pippipimagefoldertext.GetValue())
 
         if path != '':
-            self.options['pippipfolder'] = path
-            self.pippipimagefoldertext.SetValue(path)
+            self.updateConfig({'pip_pip_folder': path})
 
-            self.saveConfig()
-
-    def pipOutputBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def pipOutputBrowsePressed(self, event):
         path = self.dirBrowser('Select save folder for PIP images',
-                    self.pipoutputimagefoldertext.GetValue())
+                                    self.pipoutputimagefoldertext.GetValue())
 
         if path != '':
-            self.options['pipoutfolder'] = path
-            self.pipoutputimagefoldertext.SetValue(path)
+            self.updateConfig({'pip_output_folder': path})
 
             if not os.access( path, os.W_OK):
                 self.showWarning("Permission Error",
-                    'Error: the PIP output path %s is not writable. Please set write permissions and try again.'%path)
-
-            self.saveConfig()
+                    "Error: the PIP output path %s is not writable. "
+                    + "Please set write permissions and try again." % path)
 
     def createPipPressed(self, event): # wxGlade: chronoFrame.<event_handler>
 
@@ -1194,10 +1009,7 @@ class ChronoFrame(chronoFrame):
                     self.videosourcetext.GetValue())
 
         if path != '':
-            self.options['videosourcefolder'] = path
-            self.videosourcetext.SetValue(path)
-
-            self.saveConfig()
+            self.updateConfig({'video_source_folder': path})
 
         # recalculate length of video
         self.recalculateVideoLength()
@@ -1207,36 +1019,36 @@ class ChronoFrame(chronoFrame):
                     self.videodestinationtext.GetValue())
 
         if path != '':
-            self.options['videooutputfolder'] = path
-            self.videodestinationtext.SetValue(path)
+            self.updateConfig({'video_output_folder': path})
 
             if not os.access( path, os.W_OK):
                 self.showWarning("Permission Error",
-                    'Error: the video output path %s is not writable. Please set write permissions and try again.'%path)
+                    'Error: the video output path %s is not writable. '
+                    + "Please set write permissions and try again." % path)
 
-            self.saveConfig()
-
-    def framerateTextChanged(self, event):  # wxGlade: chronoFrame.<event_handler>
+    def framerateTextChanged(self, event):
         self.recalculateVideoLength()
         event.Skip()
 
-    def recalculateVideoLength(self, event=None): # wxGlade: chronoFrame.<event_handler>
-        sourcepath = self.videosourcetext.GetValue()
+    def recalculateVideoLength(self, event=None):
+        sourcepath = self.getConfig('video_source_folder')
 
-        # get number of files in source dir
-        numfiles = 0
-        for f in os.listdir(sourcepath):
-            if os.path.isfile(os.path.join(sourcepath,f)):
-                numfiles += 1
+        seconds = 0
+        if sourcepath:
+            numfiles = 0
+            # get number of files in source dir
+            for f in os.listdir(sourcepath):
+                if os.path.isfile(os.path.join(sourcepath,f)):
+                    numfiles += 1
 
-        # framerate
-        framerate = int(self.videoframeratetext.GetValue())
-        if numfiles == 0 or framerate == 0:
-            self.movielengthlabel.SetLabel("Estimated Movie Length: 0 m 0 s")
-            return
+            # framerate
+            framerate = int(self.videoframeratetext.GetValue())
+            if numfiles == 0 or framerate == 0:
+                self.movielengthlabel.SetLabel("Estimated Movie Length: 0 m 0 s")
+                return
 
-        # divide by frames/second to get seconds
-        seconds = numfiles/framerate
+            # divide by frames/second to get seconds
+            seconds = numfiles/framerate
 
         minutes = seconds//60
         seconds = seconds%60
@@ -1278,7 +1090,7 @@ class ChronoFrame(chronoFrame):
             if not os.path.isfile( os.path.join(self.CHRONOLAPSEPATH, 'mencoder')):
                 self.showWarning('MEncoder Not Found', 'Chronolapse uses MEncoder to process video, but could not find mencoder')
                 return False
-            elif ONWINDOWS:
+            elif ON_WINDOWS:
                 mencoderpath = os.path.join(self.CHRONOLAPSEPATH, 'mencoder')
 
         fps = self.videoframeratetext.GetValue()
@@ -1409,7 +1221,7 @@ class ChronoFrame(chronoFrame):
   #      mencoder mf://*.jpg -mf w=800:h=600:fps=25:type=jpg -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell -oac copy -o output.avi
 
         try:
-            if ONWINDOWS:
+            if ON_WINDOWS:
                 proc = subprocess.Popen(command, close_fds=True)
             else:
                 proc = subprocess.Popen(command, close_fds=True, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -1426,40 +1238,33 @@ class ChronoFrame(chronoFrame):
                     self.audiosourcevideotext.GetValue())
 
         if path != '':
-            self.options['audiosourcevideo'] = path
-            self.audiosourcevideotext.SetValue(path)
-
-            self.saveConfig()
+            self.updateConfig({'audio_source_video': path})
 
     def audioSourceBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
         path = self.fileBrowser('Select audio source',
                     self.audiosourcetext.GetValue())
 
         if path != '':
-            self.options['audiosource'] = path
-            self.audiosourcetext.SetValue(path)
+            self.updateConfig({'audio_source': path})
 
             if not os.access( path, os.W_OK):
                 self.showWarning("Permission Error",
-                    'Error: the video output path %s is not writable. Please set write permissions and try again.'%path)
+                    'Error: the video output path %s is not writable. '
+                    + 'Please set write permissions and try again.' % path)
 
-            self.saveConfig()
-
-    def audioOutputFolderBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def audioOutputFolderBrowsePressed(self, event):
         path = self.dirBrowser('Select save folder for new video ',
                     self.audiooutputfoldertext.GetValue())
 
         if path != '':
-            self.options['audiooutputfolder'] = path
-            self.audiooutputfoldertext.SetValue(path)
+            self.updateConfig({'audio_output_folder': path})
 
             if not os.access( path, os.W_OK):
                 self.showWarning("Permission Error",
-                    'Error: the video output path %s is not writable. Please set write permissions and try again.'%path)
+                    'Error: the video output path %s is not writable. '
+                    + 'Please set write permissions and try again.' % path)
 
-            self.saveConfig()
-
-    def createAudioPressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def createAudioPressed(self, event):
 
         # check that paths are valid
         videosource = self.audiosourcevideotext.GetValue()
@@ -1469,24 +1274,34 @@ class ChronoFrame(chronoFrame):
         destfolder = self.audiooutputfoldertext.GetValue()
 
         if not os.path.isfile(videosource):
-            self.showWarning('Video path invalid', 'The source video path appears is invalid')
+            self.showWarning(
+                'Video path invalid',
+                'The source video path appears is invalid')
             return False
 
         if not os.path.isfile(audiosource):
-            self.showWarning('Audio path invalid', 'The source audio path appears is invalid')
+            self.showWarning(
+                    'Audio path invalid',
+                    'The source audio path appears is invalid')
             return False
 
         # check that destination folder exists and is writable
         if not os.access( destfolder, os.W_OK):
-            self.showWarning('Permission Denied', 'The output folder %s is not writable. Please change the permissions and try again.'%destfolder)
+            self.showWarning('Permission Denied',
+                'The output folder %s is not writable. Please change '
+                + 'the permissions and try again.' % destfolder)
             return False
 
         # check mencoder path
         mencoderpath = self.mencoderpathtext.GetValue()
         if not os.path.isfile(mencoderpath):
             # look for mencoder
-            if not os.path.isfile( os.path.join(self.CHRONOLAPSEPATH, 'mencoder')):
-                self.showWarning('MEncoder Not Found', 'Chronolapse uses MEncoder to process video, but could not find mencoder')
+            if not os.path.isfile(
+                        os.path.join(self.CHRONOLAPSEPATH, 'mencoder')):
+                self.showWarning(
+                    'MEncoder Not Found',
+                 'Chronolapse uses MEncoder to process video, but could '
+                 + 'not find it. Please add MEncoder to your path.')
                 return False
             else:
                 mencoderpath = os.path.join(self.CHRONOLAPSEPATH, 'mencoder')
@@ -1497,30 +1312,53 @@ class ChronoFrame(chronoFrame):
             try:
                 # copy audio to video source folder
                 logging.debug('Creating temporary file for video')
-                handle, safevideoname = tempfile.mkstemp('_deleteme' + os.path.splitext(videobase)[1], 'chrono_', videofolder)
+                handle, safevideoname = tempfile.mkstemp(
+                                '_deleteme' + os.path.splitext(videobase)[1],
+                                'chrono_',
+                                videofolder)
                 os.close(handle)
                 logging.debug('Copying video file to %s' % safevideoname)
                 shutil.copy(videosource, safevideoname)
             except Exception, e:
-                self.showWarning('Temp Audio Error', "Exception while copying audio to video folder: %s" % repr(e))
+                self.showWarning('Temp Audio Error',
+                                "Exception while copying audio to video "
+                                + "folder: %s" % repr(e))
         else:
             # no spaces, use this
             safevideoname = videobase
 
-        # get output file name  ---  create in source folder then move bc of ANOTHER mencoder bug
-        outfile = "%s-audio%s"%(os.path.splitext(safevideoname)[0], os.path.splitext(safevideoname)[1])
+        # get output file name
+        # create in source folder then move bc of ANOTHER mencoder bug
+        outfile = "%s-audio%s" % (
+                        os.path.splitext(safevideoname)[0],
+                        os.path.splitext(safevideoname)[1]
+                    )
         if os.path.isfile(os.path.join(destfolder, outfile)):
             count = 2
-            while os.path.isfile(os.path.join(destfolder, "%s-audio%d%s"%(os.path.splitext(safevideoname)[0], count,os.path.splitext(safevideoname)[1]))):
+            while os.path.isfile(
+                    os.path.join(
+                        destfolder,
+                        "%s-audio%d%s" % (
+                                    os.path.splitext(safevideoname)[0],
+                                    count,
+                                    os.path.splitext(safevideoname)[1]
+                                    )
+                    )
+                ):
                 count += 1
-            outfile = "%s-audio%d%s"%(os.path.splitext(safevideoname)[0], count,os.path.splitext(safevideoname)[1])
+            outfile = "%s-audio%d%s" % (
+                                    os.path.splitext(safevideoname)[0],
+                                    count,
+                                    os.path.splitext(safevideoname)[1]
+                                    )
 
         # change cwd to video folder to stop mencoder bug
         try:
             logging.debug('Changing directory to %s' % videofolder)
             os.chdir( videofolder)
         except Exception, e:
-            self.showWarning('CWD Error', "Could not change current directory. %s" % repr(e))
+            self.showWarning('CWD Error',
+                            "Could not change current directory. %s" % repr(e))
 
             # delete temp video file
             if safevideoname != videobase:
@@ -1535,15 +1373,20 @@ class ChronoFrame(chronoFrame):
         try:
             # copy audio to video source folder
             logging.debug('Creating temporary file for audio')
-            handle, newaudiopath = tempfile.mkstemp('_deleteme' + os.path.splitext(audiosource)[1], 'chrono_', videofolder)
+            handle, newaudiopath = tempfile.mkstemp(
+                                '_deleteme' + os.path.splitext(audiosource)[1],
+                                'chrono_',
+                                videofolder)
             os.close(handle)
             logging.debug('Copying audio file to %s' % newaudiopath)
             shutil.copy(audiosource, newaudiopath)
         except Exception, e:
-            self.showWarning('Temp Audio Error', "Exception while copying audio to video folder: %s" % repr(e))
+            self.showWarning('Temp Audio Error',
+                "Exception while copying audio to video folder: %s" % repr(e))
 
         # create progress dialog
-        progressdialog = wx.ProgressDialog('Dubbing Progress', 'Dubbing - Please Wait')
+        progressdialog = wx.ProgressDialog(
+                                'Dubbing Progress', 'Dubbing - Please Wait')
         progressdialog.Pulse('Dubbing - Please Wait')
 
         # mencoder -ovc copy -audiofile silent.mp3 -oac copy input.avi -o output.avi
@@ -1551,7 +1394,8 @@ class ChronoFrame(chronoFrame):
         mencoderpath, os.path.basename(newaudiopath), safevideoname, outfile )
 
         logging.debug("Calling: %s"%command)
-        #proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        #proc = subprocess.Popen(
+            #command, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
         proc = subprocess.Popen(command, close_fds=True)
 
@@ -1568,7 +1412,9 @@ class ChronoFrame(chronoFrame):
                 try:
                     os.remove(newaudiopath)
                 except Exception, e:
-                    logging.debug('Exception while deleting temp audio file %s: %s' % (newaudiopath, repr(e)))
+                    logging.debug(
+                        'Exception while deleting temp audio file %s: %s' % (
+                                                        newaudiopath, repr(e)))
 
             # delete temp video file
             if safevideoname != videobase:
@@ -1581,8 +1427,15 @@ class ChronoFrame(chronoFrame):
 
         # move video file to destination folder
         if videofolder != destfolder:
-            logging.debug("Moving file from %s to %s" % (os.path.join(videodir,outfile), os.path.join(destfolder, outfile)))
-            shutil.move(os.path.join(os.path.dirname(videosource),outfile), os.path.join(destfolder, outfile))
+            logging.debug(
+                    "Moving file from %s to %s" % (
+                                os.path.join(videodir,outfile),
+                                os.path.join(destfolder, outfile))
+                        )
+            shutil.move(
+                os.path.join(os.path.dirname(videosource),outfile),
+                os.path.join(destfolder, outfile)
+            )
 
         progressdialog.Destroy()
 
@@ -1591,7 +1444,8 @@ class ChronoFrame(chronoFrame):
             try:
                 os.remove(newaudiopath)
             except Exception, e:
-                logging.debug('Exception while deleting temp audio file %s: %s' % (newaudiopath, repr(e)))
+                logging.debug('Exception while deleting temp audio file %s: %s'
+                                                 % (newaudiopath, repr(e)))
 
         # delete temp video file
         if safevideoname != videobase:
@@ -1600,7 +1454,9 @@ class ChronoFrame(chronoFrame):
             except:
                 pass
 
-        dlg = wx.MessageDialog(self, 'Dubbing Complete!\nFile saved as %s'%os.path.join(destfolder, outfile), 'Dubbing Complete', style=wx.OK)
+        dlg = wx.MessageDialog(self, 'Dubbing Complete!\nFile saved as %s'
+                                        % os.path.join(destfolder, outfile),
+                                        'Dubbing Complete', style=wx.OK)
         dlg.ShowModal()
         dlg.Destroy()
 
@@ -1645,21 +1501,22 @@ a front end to mencode to take your series of images and turn them into a movie.
     def checkVersion(self):
         try:
             # if it has been more than a week since the last check
-            lastupdate = self.options['lastupdate']
+            last_update = self.getConfig('last_update')
 
             # convert for comparison?
-            parsedtime = time.mktime(time.strptime( lastupdate, '%Y-%m-%d'))
+            parsedtime = time.mktime(time.strptime( last_update, '%Y-%m-%d'))
 
             # calculate time since last update
             timesince = time.mktime(time.localtime()) - parsedtime
 
-            if timesince > self.UPDATECHECKFREQUENCY:
-                # show popup to confirm user wants to access the net
-                dlg = wx.MessageDialog(self, "Do you want Chronolapse to check for updates now?",
-                                   'Check for Updates?',
-                                   #wx.OK | wx.ICON_INFORMATION
-                                   wx.YES_NO #| wx.NO_DEFAULT | wx.CANCEL | wx.ICON_INFORMATION
-                                   )
+            if timesince > self.getConfig("update_check_frequency"):
+                # show popup to confirm user wants to allow update checks
+                dlg = wx.MessageDialog(self,
+                        "Do you want Chronolapse to check for updates now?",
+                       'Check for Updates?',
+                       #wx.OK | wx.ICON_INFORMATION
+                       wx.YES_NO
+                       )
                 choice = dlg.ShowModal()
                 dlg.Destroy()
 
@@ -1667,60 +1524,95 @@ a front end to mencode to take your series of images and turn them into a movie.
                 if choice == wx.ID_YES:
 
                     # check URL
-                    request = urllib2.Request(self.VERSIONCHECKPATH, urllib.urlencode([('version',self.VERSION)]))
+                    request = urllib2.Request(
+                                self.VERSIONCHECKPATH,
+                                urllib.urlencode([('version',self.VERSION)]))
                     page = urllib2.urlopen(request)
 
                     #parse page
                     content = page.read()
-                    dom = xml.dom.minidom.parseString(content)
 
-                    version = dom.getElementsByTagName('version')[0].childNodes[0].data
-                    url = dom.getElementsByTagName('url')[0].childNodes[0].data
-                    changedate = dom.getElementsByTagName('changedate')[0].childNodes[0].data
+                    version_info = None
+                    try:
+                        version_info = json.loads(content)
+                    except: pass
 
-                    # if version is different, show popup
-                    if version.lower() != self.VERSION.lower():
-                        versionmessage = """
+                    if version_info:
+                        version = version_info.get('version', None)
+                        url = version_info.get('url', None)
+                        update_date = version_info.get('update_date', None)
+
+                        if version:
+                            version_info = self.get_version_info(version)
+                            this_version = self.get_version_info(self.VERSION)
+
+                            update_available = self.compare_version_info(
+                                                    version_info, this_version)
+                            if update_available:
+                                versionmessage = """
 A new version of Chronolapse is available.
 Your current version is %s. The latest available version is %s.
 You can download the new version at:
 %s""" % (self.VERSION, version, url)
-                        dlg = wx.MessageDialog(self, versionmessage,
-                                       'A new version is available',
-                                       wx.OK | wx.ICON_INFORMATION
-                                       )
-                        dlg.ShowModal()
-                        dlg.Destroy()
+                                dlg = wx.MessageDialog(self, versionmessage,
+                                               'A new version is available',
+                                               wx.OK | wx.ICON_INFORMATION
+                                               )
+                                dlg.ShowModal()
+                                dlg.Destroy()
 
-                    # otherwise, write to log
-                    else:
-                        dlg = wx.MessageDialog(self, "Chronolapse is up to date","Chronolapse is up to date",wx.OK | wx.ICON_INFORMATION)
-                        dlg.ShowModal()
-                        dlg.Destroy()
+                            # otherwise notify user and set last_update
+                            else:
+                                dlg = wx.MessageDialog(self,
+                                            "Chronolapse is up to date",
+                                            "Chronolapse is up to date",
+                                            wx.OK | wx.ICON_INFORMATION)
+                                dlg.ShowModal()
+                                dlg.Destroy()
 
             # reset update time
-            self.options['lastupdate'] = time.strftime('%Y-%m-%d')
-            self.saveConfig()
+            self.updateConfig({'last_update': time.strftime('%Y-%m-%d')})
 
         except Exception, e:
-            self.showWarning('Failed to check version', 'Failed to check version. %s' % str(e))
+            self.showWarning(
+                'Failed to check version',
+                'Failed to check version. %s' % str(e))
+
+    def get_version_info(self, version_string):
+        # try parsing version
+        version_split = version_string.split('.')
+
+        build, major, minor, rev = 0, 0, 0, 0
+        if len(version_split) == 3:
+            build, major, minor = version_split
+        elif len(version_split) == 4:
+            build, major, minor, rev = version_split
+
+        return dict(
+            build = build,
+            major = major,
+            minor = minor,
+            rev = rev)
+
+    def compare_version_info(self, version_info, this_version):
+        for field in ['build', 'major', 'minor', 'rev']:
+            if version_info[field] > this_version[field]:
+                return True
+            elif version_info[field] < this_version[field]:
+                return False
+        return False
 
     def subsectionchecked(self, event=None):
-#        try:
-
-            if self.screenshotdialog.subsectioncheck.IsChecked():
-                self.screenshotdialog.subsectiontop.Enable()
-                self.screenshotdialog.subsectionleft.Enable()
-                self.screenshotdialog.subsectionwidth.Enable()
-                self.screenshotdialog.subsectionheight.Enable()
-            else:
-                self.screenshotdialog.subsectiontop.Disable()
-                self.screenshotdialog.subsectionleft.Disable()
-                self.screenshotdialog.subsectionwidth.Disable()
-                self.screenshotdialog.subsectionheight.Disable()
- #       except:
-  #          pass
-
+        if self.screenshotdialog.subsectioncheck.IsChecked():
+            self.screenshotdialog.subsectiontop.Enable()
+            self.screenshotdialog.subsectionleft.Enable()
+            self.screenshotdialog.subsectionwidth.Enable()
+            self.screenshotdialog.subsectionheight.Enable()
+        else:
+            self.screenshotdialog.subsectiontop.Disable()
+            self.screenshotdialog.subsectionleft.Disable()
+            self.screenshotdialog.subsectionwidth.Disable()
+            self.screenshotdialog.subsectionheight.Disable()
 
     def exitMenuClicked(self, event):  # wxGlade: chronoFrame.<event_handler>
         self.Close()
@@ -1751,35 +1643,37 @@ class WebcamConfigDialog(webcamConfigDialog):
         try:
             if self.GetParent().initCam():
                 self.hascam = True
-                self.GetParent().debug('Found Camera')
+                logging.debug('Found Camera')
 
-                if ONWINDOWS:
+                if ON_WINDOWS:
                     try:
                         self.cam.displayCapturePinProperties()
                     except:
                         pass
 
         except Exception, e:
-            self.GetParent().showWarning('No Webcam Found', 'No webcam found on your system.')
+            self.GetParent().showWarning(
+                        'No Webcam Found', 'No webcam found on your system.')
             self.hascam = False
-            self.GetParent().debug(repr(e))
+            logging.error(repr(e))
 
         if not self.hascam:
             self.GetParent().webcamcheck.SetValue(False)
 
     def webcamSaveFolderBrowse(self, event):
         # dir browser
-        path = self.GetParent().dirBrowser('Select folder where webcam shots will be saved',
-                    self.GetParent().options['webcamsavefolder'])
+        path = self.GetParent().dirBrowser(
+                    'Select folder where webcam shots will be saved',
+                    self.GetParent().getConfig('webcam_save_folder'))
 
         if path is not '':
-            self.GetParent().options['webcamsavefolder'] = path
-            self.webcamsavefoldertext.SetValue(path)
+            self.GetParent().updateConfig({'webcam_save_folder': path})
 
     def testWebcamPressed(self, event):
         if self.hascam:
             self.temppath = tempfile.mkstemp('.jpg')[1]
-            self.temppath = self.temppath[:-4]  # takeWebcam automatically appends the extension again
+            self.temppath = self.temppath[:-4]
+            # takeWebcam automatically appends the extension again
 
             # create a popup with the image
             dlg = WebcamPreviewDialog(self)
@@ -1790,7 +1684,8 @@ class WebcamConfigDialog(webcamConfigDialog):
             try:
                 os.unlink(self.temppath + '.jpg')
             except Exception, e:
-                self.GetParent().debug(e)
+                logging.warning(
+                "Failed to delete temp file %s: %s" % (self.temppath, repr(e)))
 
 
 class WebcamPreviewDialog(webcamPreviewDialog):
@@ -1816,7 +1711,7 @@ class WebcamPreviewDialog(webcamPreviewDialog):
         try:
             path = self.parent.takeWebcam(os.path.basename(self.temppath), os.path.dirname(self.temppath), '')
 
-            if(ONWINDOWS):
+            if(ON_WINDOWS):
                 bitmap = wx.Bitmap(path, wx.BITMAP_TYPE_JPEG)
             else:
                 # try this so WX doesnt freak out if the file isnt a bitmap
@@ -1895,9 +1790,9 @@ class TaskBarIcon(wx.TaskBarIcon):
         self.parentApp = parent
         self.MainFrame = MainFrame
         self.wx_id = wx.NewId()
-        if ONWINDOWS and os.path.isfile( os.path.join(os.path.abspath(workingdir), 'chronolapse.ico')):
+        if ON_WINDOWS and os.path.isfile( os.path.join(os.path.abspath(workingdir), 'chronolapse.ico')):
             self.SetIcon(wx.Icon( os.path.join( os.path.abspath(workingdir), "chronolapse.ico"),wx.BITMAP_TYPE_ICO), 'Chronolapse')
-        elif not ONWINDOWS and os.path.isfile( os.path.join(os.path.abspath(workingdir), 'chronolapse_24.ico')):
+        elif not ON_WINDOWS and os.path.isfile( os.path.join(os.path.abspath(workingdir), 'chronolapse_24.ico')):
             self.SetIcon(wx.Icon( os.path.join( os.path.abspath(workingdir), "chronolapse_24.ico"),wx.BITMAP_TYPE_ICO), 'Chronolapse')
         self.CreateMenu()
 
@@ -1940,7 +1835,7 @@ class TaskBarIcon(wx.TaskBarIcon):
         self.Bind(wx.EVT_TASKBAR_LEFT_DCLICK, self.toggle_window_visibility)
         self.Bind(wx.EVT_MENU, self.toggle_window_visibility, id=self.wx_id)
         self.Bind(wx.EVT_MENU, self.MainFrame.iconClose, id=wx.ID_EXIT)
-        if ONWINDOWS:
+        if ON_WINDOWS:
             self.MainFrame.Bind(wx.EVT_ICONIZE, self.set_window_visible_off)
         else:
             self.MainFrame.Bind(wx.EVT_ICONIZE, self.iconized)
