@@ -8,45 +8,7 @@
         at the same time so they are 'synced' together. In addition to saving the
         images, CL has some processing tools to compile your images into video,
         create a picture-in-picture effect, and resize images.
-    @license: MIT license - see license.txt
-    @todo:
-
-    @change: 1.0.1
-        - fixed outputting video to path with spaces - used a bit of a hack for mencoder to work -- issue 1
-    @change: 1.0.2
-        - removed short sighted dependence on kml.pyc
-        - added -a flag for autostarting
-        - added minimizing to tray option
-        - added rotate option and changed resize tab to adjust tab
-        - fixed dual monitor support to work with any orientation or relative resolution
-    @change: 1.0.3
-        - fixed a bug with times under 1 second being fired 1000 times too fast
-        - silently fails if set to capture 2 monitors but they are duplicated
-        - added system wide hotkey -- doesnt seem to work right in wx so it is only part implemented
-        - added audio tab to dub audio onto your timelapse
-        - added a schedule tab for scheduling starts and/or stops
-    @change: 1.0.4
-        - added a rough and dirty threading implementation for the mencoder call -- trying to fix hang in GUI form
-        - changed popen to just pop up a window with output -- was hanging on mencoder call with no window to print to
-        - fixed update check code
-    @change: 1.0.5
-        - added subsection option for screenshots
-    @change: 1.0.6
-        - fixed captures at less than 1 second interval -- adds microseconds to filename and timestamp
-    @change: 1.0.7
-        - fixed bug where audio encoding failed when video filename did NOT have a space in it :o
-    @change: 1.0.8
-        - added 'default' screenshot and webcam folders
-        - added a bunch of non-windows options and checks
-        - added code to automatically un-check the webcam box if no cam found
-        - added code to try to initialize the webcam with default settings if checked but not configured
-        - fixed bug on linux when coming back from the tray
-        - added some openCV code for linux/mac but it doesn't seem to work so webcams are disabled on non-windows systems
-        - added rename tab for renaming the captured files into sequential integer format (issue #20)
-        - removed format option and added some codecs
-
-    @change: 1.0.9
-        - added '-b' command line option to launch minimized
+    @license: MIT license
 """
 
 VERSION = '2.0.0alpha'
@@ -54,6 +16,8 @@ VERSION = '2.0.0alpha'
 import wx
 import wx.lib.masked as masked
 import logging
+
+from easyconfig import EasyConfig
 
 #import cv2
 import numpy
@@ -70,7 +34,7 @@ import subprocess
 import urllib, urllib2
 
 import threading
-import xml.dom.minidom
+
 
 
 
@@ -107,22 +71,20 @@ TODO:
     - clean up windows branching code
     - clean up code everywhere possible
     - better encoding options - not MEncoder? better compilation of MEncoder?
+        -- write own simple encoder?
 
-    - use existence of specified local file to prevent captures
-
+    - option to save files in timestamp format or sequential integer format
+    - chronolapse file format? includes image and metadata
 
     - better timestamp options, write background color under foreground color
 
     - multi cam support
 
     - figure out how to add plugins for both UI and for functionality
-
-    - option to save files in timestamp format or sequential integer format
-    - chronolapse file format? includes image and metadata
+    - use existence of specified local file to prevent captures
 
     - chronoslices
 
-    - remove hotkeys
     - find a clean way to communicate with the process while it is running
 """
 
@@ -185,14 +147,72 @@ class ChronoFrame(chronoFrame):
 
         logging.debug("Parsed command line options")
 
-    def loadConfiguration(self):
-        pass
+    def _bindUI(self, field, key, section='chronolapse'):
+        logging.debug("Binding %s[%s] to %s" % (section, key, str(field)))
+        self.config.add_listener(section, key, lambda x: field.SetValue(str(x)))
 
-        # load config file in target location
-        # if no file, try to create
-        # if cannot create, show warning and bail
-        # TODO: create self-saving config file that auto-updates fields and
-        #       updates self from field changes (binds events automatically?)
+    def updateConfig(self, config, section='chronolapse'):
+        self.config.updateBatch(section, config)
+
+    def getConfig(self, key, section='chronolapse', default=None):
+        return self.config.get(section, key, default=default)
+
+    def loadConfiguration(self):
+        logging.debug(
+            "Loading configuration file: %s" % self.settings.config_file)
+
+        self.config = EasyConfig(self.settings.config_file, defaults={
+            'chronolapse': {
+                'frequency': 60,
+
+                'screenshot_timestamp': True,
+                'screenshot_save_folder': 'screenshots',
+                'screenshot_prefix': 'screen_',
+                'screenshot_format': 'jpg',
+                'screenshot_dual_monitor': False,
+
+                'screenshot_subsection': False,
+                'screenshot_subsection_top': '0',
+                'screenshot_subsection_left': '0',
+                'screenshot_subsection_width': '800',
+                'screenshot_subsection_height': '600',
+##
+##                'webcamtimestamp':  True,
+##                'webcamsavefolder':     'webcam',
+##                'webcamprefix':     'cam_',
+##                'webcamformat':     'jpg',
+##                'webcamresolution': '800, 600',
+##
+##                'pipmainfolder':    '',
+##                'pippipfolder':     '',
+##
+##                'videosourcefolder':    '',
+##                'videooutputfolder':    '',
+##
+##                'lastupdate': time.strftime('%Y-%m-%d')
+
+
+            }
+        })
+
+        # bind all the ui fields to the config manager
+        logging.debug("Binding events")
+        self._bindUI(self.frequencytext, 'frequency')
+
+        # look for existing config file - load it if possible
+        if os.path.exists(self.settings.config_file):
+            try:
+                self.config.load()
+                logging.debug("Loaded config")
+            except IOError, e:
+                logging.error("Failed to load Config File: %s" % str(e))
+                self.showWarning(
+                    "Failed to Load Config",
+                    "Failed to Load Configuration File. " \
+                        + "Please check your file permissions."
+                )
+                self.Close()
+
 
     def todo(self):
 
@@ -261,17 +281,6 @@ class ChronoFrame(chronoFrame):
                         wx.FONTWEIGHT_NORMAL),
             'fontdata': wx.FontData(),
 
-            'screenshottimestamp':  True,
-            'screenshotsavefolder':     'screenshots',
-            'screenshotprefix':     'screen_',
-            'screenshotformat':     'jpg',
-            'screenshotdualmonitor': False,
-
-            'screenshotsubsection': False,
-            'screenshotsubsectiontop': '0',
-            'screenshotsubsectionleft': '0',
-            'screenshotsubsectionwidth': '800',
-            'screenshotsubsectionheight': '600',
 
             'webcamtimestamp':  True,
             'webcamsavefolder':     'webcam',
@@ -684,8 +693,8 @@ class ChronoFrame(chronoFrame):
             cPickle.dump(config, configfile)
 
         except Exception, e:
-            print "Error: failed to save options to config file"
-            print e
+            logging.error(
+                "Error: failed to save options to config file: %s" % repr(e))
 
     def initCam(self, devnum=0):
         if self.cam is None:
@@ -718,26 +727,26 @@ class ChronoFrame(chronoFrame):
         return False
 
     def saveScreenshot(self, filename):
-        timestamp = self.options['screenshottimestamp']
-        folder = self.options['screenshotsavefolder']
-        prefix = self.options['screenshotprefix']
-        format = self.options['screenshotformat']
+        timestamp = self.getConfig('screenshot_timestamp')
+        folder = self.getConfig('screenshot_save_folder')
+        prefix = self.getConfig('screenshot_prefix')
+        file_format = self.getConfig('screenshot_format')
 
         rect = None
-        if self.options['screenshotsubsection']:
-            if (self.options['screenshotsubsectiontop'] > 0 and
-                self.options['screenshotsubsectionleft'] > 0 and
-                self.options['screenshotsubsectionwidth'] > 0 and
-                self.options['screenshotsubsectionheight'] > 0):
+        if self.getConfig('screenshot_subsection'):
+            if (self.getConfig('screenshot_subsection_top') > 0 and
+                self.getConfig('screenshot_subsection_left'] > 0 and
+                self.getConfig('screenshot_subsection_width'] > 0 and
+                self.getConfig('screenshot_subsection_height'] > 0):
                 rect = wx.Rect(
-                        int(self.options['screenshotsubsectiontop']),
-                        int(self.options['screenshotsubsectionleft']),
-                        int(self.options['screenshotsubsectionwidth']),
-                        int(self.options['screenshotsubsectionheight'])
+                        int(self.getConfig('screenshot_subsection_top')),
+                        int(self.getConfig('screenshot_subsection_left')),
+                        int(self.getConfig('screenshot_subsection_width')),
+                        int(self.getConfig('screenshot_subsection_height'))
                     )
 
         img = self.takeScreenshot(rect, timestamp)
-        self.saveImage(img, filename, folder, prefix, format)
+        self.saveImage(img, filename, folder, prefix, file_format)
 
     def takeScreenshot(self, rect = None, timestamp=False):
         """ Takes a screenshot of the screen at give pos & size (rect).
@@ -895,7 +904,6 @@ class ChronoFrame(chronoFrame):
         dlg.ShowModal()
         dlg.Destroy()
 
-# buttons!
     def screenshotConfigurePressed(self, event): # wxGlade: chronoFrame.<event_handler>
         dlg = ScreenshotConfigDialog(self)
 
@@ -903,42 +911,46 @@ class ChronoFrame(chronoFrame):
         self.screenshotdialog = dlg
 
         # set current options in dlg
-        dlg.dualmonitorscheck.SetValue(self.options['screenshotdualmonitor'])
+        dlg.dualmonitorscheck.SetValue(
+                self.getConfig('screenshot_dual_monitor', default=False))
 
-        dlg.subsectioncheck.SetValue(self.options['screenshotsubsection'])
-        dlg.subsectiontop.SetValue(str(self.options['screenshotsubsectiontop']))
-        dlg.subsectionleft.SetValue(str(self.options['screenshotsubsectionleft']))
-        dlg.subsectionwidth.SetValue(str(self.options['screenshotsubsectionwidth']))
-        dlg.subsectionheight.SetValue(str(self.options['screenshotsubsectionheight']))
+        dlg.subsectioncheck.SetValue(
+                        self.getConfig('screenshot_subsection', default=False))
+        dlg.subsectiontop.SetValue(
+                            str(self.getConfig('screenshot_subsection_top')))
+        dlg.subsectionleft.SetValue(
+                            str(self.getConfig('screenshot_subsection_left')))
+        dlg.subsectionwidth.SetValue(
+                            str(self.getConfig('screenshot_subsection_width')))
+        dlg.subsectionheight.SetValue(
+                            str(self.getConfig('screenshot_subsection_height')))
 
         # call this to toggle subsection option enabled/disabled
         dlg.Bind(wx.EVT_CHECKBOX, self.subsectionchecked)
         self.subsectionchecked()
 
-        dlg.timestampcheck.SetValue(self.options['screenshottimestamp'])
-        dlg.screenshotprefixtext.SetValue(self.options['screenshotprefix'])
-        dlg.screenshotsavefoldertext.SetValue(self.options['screenshotsavefolder'])
-        dlg.screenshotformatcombo.SetStringSelection(self.options['screenshotformat'])
+        dlg.timestampcheck.SetValue(self.getConfig('screenshot_timestamp'))
+        dlg.screenshotprefixtext.SetValue(self.getConfig('screenshot_prefix'))
+        dlg.screenshotsavefoldertext.SetValue(self.getConfig('screenshot_save_folder'))
+        dlg.screenshotformatcombo.SetStringSelection(self.getConfig('screenshot_format'))
 
 
         if dlg.ShowModal() == wx.ID_OK:
 
             # save dialog info
-            self.options['screenshotdualmonitor'] = dlg.dualmonitorscheck.IsChecked()
+            self.updateConfig({
+                'screenshot_timestamp': dlg.timestampcheck.IsChecked(),
+                'screenshot_prefix': dlg.screenshotprefixtext.GetValue(),
+                'screenshot_save_folder': dlg.screenshotsavefoldertext.GetValue(),
+                'screenshot_format': dlg.screenshotformatcombo.GetStringSelection(),
 
-            self.options['screenshotsubsection'] = dlg.subsectioncheck.IsChecked()
-            self.options['screenshotsubsectiontop'] = dlg.subsectiontop.GetValue()
-            self.options['screenshotsubsectionleft'] = dlg.subsectionleft.GetValue()
-            self.options['screenshotsubsectionwidth'] = dlg.subsectionwidth.GetValue()
-            self.options['screenshotsubsectionheight'] = dlg.subsectionheight.GetValue()
-
-            self.options['screenshottimestamp'] = dlg.timestampcheck.IsChecked()
-            self.options['screenshotprefix'] = dlg.screenshotprefixtext.GetValue()
-            self.options['screenshotsavefolder'] = dlg.screenshotsavefoldertext.GetValue()
-            self.options['screenshotformat'] = dlg.screenshotformatcombo.GetStringSelection()
-
-            # save to file
-            self.saveConfig()
+                'screenshot_dual_monitor': dlg.dualmonitorscheck.IsChecked(),
+                'screenshot_subsection': dlg.subsectioncheck.IsChecked(),
+                'screenshot_subsection_top': dlg.subsectiontop.GetValue(),
+                'screenshot_subsection_left': dlg.subsectionleft.GetValue(),
+                'screenshot_subsection_width': dlg.subsectionwidth.GetValue(),
+                'screenshot_subsection_height': dlg.subsectionheight.GetValue()
+            })
 
         dlg.Destroy()
 
@@ -973,9 +985,9 @@ class ChronoFrame(chronoFrame):
         if text == 'Start Capture':
 
             # check that screenshot and webcam folders are available
-            if self.screenshotcheck.GetValue() and not os.access(self.options['screenshotsavefolder'], os.W_OK):
+            if self.screenshotcheck.GetValue() and not os.access(self.getConfig('screenshot_save_folder'), os.W_OK):
                 self.showWarning('Cannot Write to Screenshot Folder',
-                'Error: Cannot write to screenshot folder %s. Please add write permission and try again.'%self.options['screenshotsavefolder'])
+                'Error: Cannot write to screenshot folder %s. Please add write permission and try again.'%self.getConfig('screenshot_save_folder'))
                 return False
 
             if self.webcamcheck.GetValue() and not os.access(self.options['webcamsavefolder'], os.W_OK):
@@ -1018,31 +1030,8 @@ class ChronoFrame(chronoFrame):
             self.stopTimer()
 
     def forceCapturePressed(self, event): # wxGlade: chronoFrame.<event_handler>
-
         # save a capture right now
-        filename = self.capture()
-
-        # strip extension
-        index = filename.rfind('.') # skip error checking - should never be user-input data
-        name = filename[:index]
-        ext = filename[index+1:]
-
-        # copy file(s) as many times as in force capture frames box
-        captureframes = int(self.forcecaptureframestext.GetValue())
-        if captureframes > 1:
-
-            if self.screenshotcheck.GetValue():
-                screensource = os.path.join( self.options['screenshotsavefolder'], filename)
-
-            if self.webcamcheck.GetValue():
-                websource = os.path.join( self.options['webcamsavefolder'], filename)
-
-            for i in xrange(captureframes-1):
-                if self.screenshotcheck.GetValue():
-                    shutil.copyfile(screensource, name + str(i+1) + '.' + ext)
-
-                if self.webcamcheck:
-                    shutil.copyfile(websource, name + str(i+1) + '.' + ext)
+        self.capture()
 
     def pipMainImageBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
         path = self.dirBrowser('Select folder containing main images',
@@ -1197,7 +1186,6 @@ class ChronoFrame(chronoFrame):
 
             except Exception, e:
                 pass
-                #print e
 
         progressdialog.Destroy()
 
@@ -1746,11 +1734,11 @@ class ScreenshotConfigDialog(screenshotConfigDialog):
         # dir browser
         path = self.GetParent().dirBrowser(
                             'Select folder where screenshots will be saved',
-                            self.GetParent().options['screenshotsavefolder']
+                            self.GetParent().getConfig('screenshot_save_folder')
                         )
 
         if path is not '':
-            self.GetParent().options['screenshotsavefolder'] = path
+            self.GetParent().updateConfig({'screenshot_save_folder': path})
             self.screenshotsavefoldertext.SetValue(path)
 
 
@@ -1938,11 +1926,11 @@ class TaskBarIcon(wx.TaskBarIcon):
     def iconized(self, event):
         # bound on non-windows only
         if self.MainFrame.IsIconized():
-            #print "Main Frame Is Iconized"
+            logging.debug("Main Frame Is Iconized")
             self.set_icon_action_text(True)
             self.MainFrame.Show(False)
         else:
-            #print "Main Frame Is Not Iconized"
+            logging.debug("Main Frame Is Not Iconized")
             self.set_icon_action_text(False)
             self.MainFrame.Show(True)
             self.MainFrame.Raise()
