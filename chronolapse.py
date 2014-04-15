@@ -295,6 +295,15 @@ class ChronoFrame(chronoFrame):
         self._bindUI(self.audiosourcetext, 'audio_source')
         self._bindUI(self.audiooutputfoldertext, 'audio_output_folder')
 
+        # bind fps
+        self.Bind(
+            wx.EVT_TEXT,
+            self.recalculateVideoLength,
+            self.videoframeratetext
+        )
+        # calculate video length now
+        self.recalculateVideoLength()
+
         # create custom binding for filename format
         self.Bind(wx.EVT_RADIOBUTTON ,
                     lambda event: self.updateConfig(
@@ -375,7 +384,6 @@ class ChronoFrame(chronoFrame):
 
         if os.path.isfile(icon_file):
             self.SetIcon(wx.Icon(icon_file, wx.BITMAP_TYPE_ICO))
-
         else:
             logging.warning( 'Could not find %s' % icon_file)
 
@@ -909,7 +917,9 @@ Please add write permission and try again.""") % webcam_folder)
 
         # make sure output file is writable
         if not os.access( self.pipoutputimagefoldertext.GetValue(), os.W_OK):
-            self.showWarning('Permission Error','Error: Output file is not writable. Please adjust your permissions and try again.')
+            self.showWarning('Permission Error',
+            'Error: Output file is not writable. Please check your ' +
+            ' permissions and try again.')
             return False
 
         # get pip settings
@@ -930,8 +940,14 @@ Please add write permission and try again.""") % webcam_folder)
         logging.debug('Creating PIP')
 
         # progress dialog
-        progressdialog = wx.ProgressDialog('PIP Progress', 'Processing Images',
-                        maximum=len(sourcefiles), parent=self, style= wx.PD_CAN_ABORT | wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
+        progressdialog = wx.ProgressDialog(
+                        'PIP Progress',
+                        'Processing Images',
+                        maximum=len(sourcefiles),
+                        parent=self,
+                        style =
+                            wx.PD_CAN_ABORT | wx.PD_APP_MODAL |
+                             wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
 
         # for all images in main folder
         count = 0
@@ -941,7 +957,8 @@ Please add write permission and try again.""") % webcam_folder)
 
             # update progress dialog
             count += 1
-            cancel, somethingelse = progressdialog.Update(count, 'Processing %s'%sourcefile)
+            cancel, somethingelse = progressdialog.Update(
+                                            count, 'Processing %s'%sourcefile)
             # update progress dialog
             if not cancel:
                 progressdialog.Destroy()
@@ -1004,7 +1021,10 @@ Please add write permission and try again.""") % webcam_folder)
 
                 # paste on main - bottom right
                 elif pippositionstring == 'Bottom-Right':
-                    source.paste(pip, ( source.size[0]-pip.size[0], source.size[1]-pip.size[1]))
+                    source.paste(
+                        pip,
+                        (source.size[0]-pip.size[0], source.size[1]-pip.size[1])
+                    )
 
                 # paste on main - bottom left
                 elif pippositionstring == 'Bottom-Left':
@@ -1027,9 +1047,11 @@ Please add write permission and try again.""") % webcam_folder)
 
         progressdialog.Destroy()
 
-    def videoSourceBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
-        path = self.dirBrowser('Select folder containing source images',
-                    self.videosourcetext.GetValue())
+    def videoSourceBrowsePressed(self, event):
+        path = self.dirBrowser(
+                    'Select folder containing source images',
+                    self.videosourcetext.GetValue()
+                )
 
         if path != '':
             self.updateConfig({'video_source_folder': path})
@@ -1037,8 +1059,9 @@ Please add write permission and try again.""") % webcam_folder)
         # recalculate length of video
         self.recalculateVideoLength()
 
-    def videoDestinationBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
-        path = self.dirBrowser('Select save folder for video ',
+    def videoDestinationBrowsePressed(self, event):
+        path = self.dirBrowser(
+                    'Select save folder for video ',
                     self.videodestinationtext.GetValue())
 
         if path != '':
@@ -1054,6 +1077,8 @@ Please add write permission and try again.""") % webcam_folder)
         event.Skip()
 
     def recalculateVideoLength(self, event=None):
+        logging.debug("Recalculating Video Length")
+
         sourcepath = self.getConfig('video_source_folder')
 
         seconds = 0
@@ -1065,9 +1090,14 @@ Please add write permission and try again.""") % webcam_folder)
                     numfiles += 1
 
             # framerate
-            framerate = int(self.videoframeratetext.GetValue())
+            try:
+                framerate = int(self.videoframeratetext.GetValue())
+            except ValueError:
+                framerate = 0
+
             if numfiles == 0 or framerate == 0:
-                self.movielengthlabel.SetLabel("Estimated Movie Length: 0 m 0 s")
+                self.movielengthlabel.SetLabel(
+                                            "Estimated Movie Length: 0 m 0 s")
                 return
 
             # divide by frames/second to get seconds
@@ -1077,41 +1107,59 @@ Please add write permission and try again.""") % webcam_folder)
         seconds = seconds%60
 
         # change label
-        self.movielengthlabel.SetLabel("Estimated Movie Length: %d m %d s" % (minutes, seconds))
+        self.movielengthlabel.SetLabel(
+                    "Estimated Movie Length: %d m %d s" % (minutes, seconds))
 
-    def mencoderPathBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+        if event:
+            event.Skip()
+
+    def mencoderPathBrowsePressed(self, event):
         # file browser
-        dlg = wx.FileDialog(self, 'Select MEncoder Executable', self.CHRONOLAPSEPATH)
+        dlg = wx.FileDialog(
+                    self, 'Select MEncoder Executable', self.CHRONOLAPSEPATH)
         result = dlg.ShowModal()
         if result == wx.ID_OK:
             path = dlg.GetPath()
             self.mencoderpathtext.SetValue(path)
         dlg.Destroy()
 
-    def createVideoPressed(self, event): # wxGlade: chronoFrame.<event_handler>
-
+    def createVideoPressed(self, event):
         # check that paths are valid
         sourcefolder = self.videosourcetext.GetValue()
         destfolder = self.videodestinationtext.GetValue()
 
         if not os.path.isdir(sourcefolder):
-            self.showWarning('Source folder invalid', 'The source folder is invalid')
+            self.showWarning('Source folder invalid',
+                            'The video source folder is invalid')
             return False
 
         # check that destination folder exists and is writable
         if not os.access( destfolder, os.W_OK):
-            self.showWarning('Permission Denied', 'The output folder %s is not writable. Please change the permissions and try again.'%destfolder)
+            self.showWarning(
+                'Permission Denied',
+                ('The output folder %s is not writable. Please change the ' +
+                'permissions and try again.') % destfolder
+            )
             return False
 
         # check mencoder path
         mencoderpath = self.mencoderpathtext.GetValue()
         if mencoderpath == 'mencoder':
-            self.showWarning('MEncoder path not set', 'Chronolapse uses MEncoder to process video. Either point to MEncoder directly or ensure it is on your path.')
+            self.showWarning(
+                'MEncoder path not set',
+                'Chronolapse uses MEncoder to process video. Either point to ' +
+                'MEncoder directly or ensure it is on your path.'
+            )
 
         elif not os.path.isfile(mencoderpath):
             # look for mencoder
-            if not os.path.isfile( os.path.join(self.CHRONOLAPSEPATH, 'mencoder')):
-                self.showWarning('MEncoder Not Found', 'Chronolapse uses MEncoder to process video, but could not find mencoder')
+            if not os.path.isfile(
+                            os.path.join(self.CHRONOLAPSEPATH, 'mencoder')):
+                self.showWarning(
+                    'MEncoder Not Found',
+                    'Chronolapse uses MEncoder to process video, but could ' +
+                    'not find mencoder'
+                )
                 return False
             elif ON_WINDOWS:
                 mencoderpath = os.path.join(self.CHRONOLAPSEPATH, 'mencoder')
@@ -1120,7 +1168,11 @@ Please add write permission and try again.""") % webcam_folder)
         try:
             fps = int(fps)
         except:
-            self.showWarning('Frame Rate Invalid', 'The frame rate setting is invalid. Frame rate must be a positive integer')
+            self.showWarning(
+                'Frame Rate Invalid',
+                'The frame rate setting is invalid. Frame rate must be ' +
+                'a positive integer'
+            )
             return False
 
 
@@ -1158,7 +1210,10 @@ Please add write permission and try again.""") % webcam_folder)
                 pass
 
         if not found:
-            self.showWarning('No Images Found', 'No images were found in the source folder %s'%sourcefolder)
+            self.showWarning(
+                'No Images Found',
+                'No images were found in the source folder %s' % sourcefolder
+            )
             return False
 
         # get video type from select box
@@ -1167,32 +1222,49 @@ Please add write permission and try again.""") % webcam_folder)
         # get codec from select box
         codec = self.videocodeccombo.GetStringSelection()
 
-        # get output file name  ---  create in source folder then move bc of ANOTHER mencoder bug
+        # get output file name --- create in source folder then
+        # move because of ANOTHER mencoder bug
         timestamp = time.strftime('%Y-%m-%d_%H-%M-%S')
-        outextension = 'avi'
+        out_extension = 'avi'
 
-        if (os.path.isfile(os.path.join(destfolder, 'timelapse_%s.%s' % (timestamp, outextension)))
-               or os.path.isfile( os.path.join(sourcefolder, 'timelapse_%s.%s' % (timestamp, outextension)))):
+        output_filename = os.path.join(
+                                destfolder,
+                                'timelapse_%s.%s' % (timestamp, outextension)
+                            )
+        source_filename = os.path.join(
+                                sourcefolder,
+                                'timelapse_%s.%s' % (timestamp, outextension)
+                            )
 
-            count = 2
-            while(os.path.isfile(os.path.join(destfolder, 'timelapse_%s_%d.%s' % (timestamp, count, outextension)))
-               or os.path.isfile( os.path.join(sourcefolder, 'timelapse_%s_%d.%s' % (timestamp, count, outextension)))):
-                count += 1
+        # if either file already exists
+        count = 1
+        while(
+            os.path.isfile(output_filename)
+            or os.path.isfile(source_filename)):
 
-            outfile = 'timelapse_%s_%d.%s' % (timestamp, count, outextension)
-
-        else:
-            outfile = 'timelapse_%s.%s' % (timestamp, outextension)
+            count += 1
+            output_filename = os.path.join(
+                    destfolder,
+                    'timelapse_%s_%d.%s' % (timestamp, count, out_extension)
+                )
+            source_filename = os.path.join(
+                    destfolder,
+                    'timelapse_%s_%d.%s' % (timestamp, count, out_extension)
+                )
 
         # change cwd to image folder to stop mencoder bug
         try:
             os.chdir(sourcefolder)
         except Exception, e:
-            self.showWarning('CWD Error', "Could not change current directory. %s" % str(e))
+            self.showWarning(
+                'CWD Error',
+                "Could not change current directory. %s" % str(e)
+            )
             return False
 
         # create progress dialog
-        progressdialog = wx.ProgressDialog('Encoding Progress', 'Encoding - Please Wait')
+        progressdialog = wx.ProgressDialog(
+                                'Encoding Progress', 'Encoding - Please Wait')
         progressdialog.Pulse('Encoding - Please Wait')
 
         # run mencoder with options from GUI
@@ -1205,14 +1277,15 @@ Please add write permission and try again.""") % webcam_folder)
 ##                    mencoderpath, path, fps, outfile )
 ##            command = '"%s" mf://fps=%s:type=png  -ovc rawrgb -o %s \*.png' % (mencoderpath, fps, outfile)
 ##        else:
-        command = '"%s" mf://%s -mf fps=%s-ovc lavc -lavcopts vcodec=%s -o %s' % (
-                    mencoderpath, path, fps, codec, outfile )
+        command = ('"%s" mf://%s -mf fps=%s-ovc lavc -lavcopts vcodec=%s -o %s'
+                        % (mencoderpath, path, fps, codec, output_filename))
 
         logging.debug("Calling: %s"%command)
 
         self.returncode = None
         self.mencodererror = 'Unknown'
-        mencoderthread = threading.Thread(None, self.runMencoderInThread, 'mencoderthread', (command,))
+        mencoderthread = threading.Thread(
+                None, self.runMencoderInThread, 'mencoderthread', (command,))
         mencoderthread.start()
 
         while self.returncode is None:
@@ -1223,16 +1296,32 @@ Please add write permission and try again.""") % webcam_folder)
         if self.returncode > 0:
             progressdialog.Destroy()
 
-            self.showWarning('MEncoder Error', "Error while encoding video. Check the MEncoder console or try a different codec")
+            self.showWarning(
+                    'MEncoder Error',
+                    "Error while encoding video. Check the MEncoder console " +
+                    "or try a different codec"
+            )
             return
 
         # move video file to destination folder
-        logging.debug("Moving file from %s to %s" % (os.path.join(sourcefolder,outfile), os.path.join(destfolder, outfile)))
-        shutil.move(os.path.join(sourcefolder,outfile), os.path.join(destfolder, outfile))
+        logging.debug("Moving file from %s to %s" % (
+                            os.path.join(sourcefolder, output_filename),
+                            os.path.join(destfolder, output_filename))
+                    )
+        shutil.move(
+            os.path.join(sourcefolder,output_file),
+            os.path.join(destfolder, output_file)
+        )
 
         progressdialog.Destroy()
 
-        dlg = wx.MessageDialog(self, 'Encoding Complete!\nFile saved as %s'%os.path.join(destfolder, outfile), 'Encoding Complete', style=wx.OK)
+        dlg = wx.MessageDialog(
+            self,
+            'Encoding Complete!\nFile saved as %s' %
+                            os.path.join(destfolder, outfile),
+            'Encoding Complete',
+            style=wx.OK
+        )
         dlg.ShowModal()
         dlg.Destroy()
 
@@ -1247,7 +1336,8 @@ Please add write permission and try again.""") % webcam_folder)
             if ON_WINDOWS:
                 proc = subprocess.Popen(command, close_fds=True)
             else:
-                proc = subprocess.Popen(command, close_fds=True, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                proc = subprocess.Popen(command, close_fds=True, shell=True,
+                                stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
             stdout, stderr = proc.communicate()
             self.mencodererror = stderr
@@ -1256,14 +1346,14 @@ Please add write permission and try again.""") % webcam_folder)
             self.mencodererror = repr(e)
             self.returncode = 1
 
-    def audioSourceVideoBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def audioSourceVideoBrowsePressed(self, event):
         path = self.fileBrowser('Select video source',
                     self.audiosourcevideotext.GetValue())
 
         if path != '':
             self.updateConfig({'audio_source_video': path})
 
-    def audioSourceBrowsePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def audioSourceBrowsePressed(self, event):
         path = self.fileBrowser('Select audio source',
                     self.audiosourcetext.GetValue())
 
@@ -1362,17 +1452,17 @@ Please add write permission and try again.""") % webcam_folder)
                     os.path.join(
                         destfolder,
                         "%s-audio%d%s" % (
-                                    os.path.splitext(safevideoname)[0],
-                                    count,
-                                    os.path.splitext(safevideoname)[1]
+                                        os.path.splitext(safevideoname)[0],
+                                        count,
+                                        os.path.splitext(safevideoname)[1]
                                     )
                     )
                 ):
                 count += 1
             outfile = "%s-audio%d%s" % (
-                                    os.path.splitext(safevideoname)[0],
-                                    count,
-                                    os.path.splitext(safevideoname)[1]
+                                        os.path.splitext(safevideoname)[0],
+                                        count,
+                                        os.path.splitext(safevideoname)[1]
                                     )
 
         # change cwd to video folder to stop mencoder bug
@@ -1505,11 +1595,17 @@ a front end to mencode to take your series of images and turn them into a movie.
         info.Developers = [ 'Collin "Keeyai" Green']
 
         if os.path.isfile( os.path.join( self.CHRONOLAPSEPATH, 'license.txt')):
-            licensefile = file(os.path.join( self.CHRONOLAPSEPATH, 'license.txt'), 'r')
+            licensefile = file(
+                            os.path.join(
+                                self.CHRONOLAPSEPATH,
+                                'license.txt'
+                            ),
+                            'r')
             licensetext = licensefile.read()
             licensefile.close()
         else:
-            licensetext = 'License file not found. Please contact the developers for a copy of the license.'
+            licensetext = 'License file not found. Please contact the ' + \
+                            'developers for a copy of the license.'
 
         licensetext.replace('\n', ' ')
         info.License = '\n'.join(textwrap.wrap(licensetext,70))
@@ -1817,10 +1913,18 @@ class TaskBarIcon(wx.TaskBarIcon):
         self.parentApp = parent
         self.MainFrame = MainFrame
         self.wx_id = wx.NewId()
-        if ON_WINDOWS and os.path.isfile( os.path.join(os.path.abspath(workingdir), 'chronolapse.ico')):
-            self.SetIcon(wx.Icon( os.path.join( os.path.abspath(workingdir), "chronolapse.ico"),wx.BITMAP_TYPE_ICO), 'Chronolapse')
-        elif not ON_WINDOWS and os.path.isfile( os.path.join(os.path.abspath(workingdir), 'chronolapse_24.ico')):
-            self.SetIcon(wx.Icon( os.path.join( os.path.abspath(workingdir), "chronolapse_24.ico"),wx.BITMAP_TYPE_ICO), 'Chronolapse')
+
+        if ON_WINDOWS:
+            icon_file = os.path.join(
+                            os.path.abspath(workingdir),
+                            'chronolapse.ico'
+                        )
+        else:
+            icon_file = os.path.join(
+                            os.path.abspath(workingdir),
+                            'chronolapse_24.ico'
+                        )
+        self.SetIcon(wx.Icon(icon_file, wx.BITMAP_TYPE_ICO), 'Chronolapse')
         self.CreateMenu()
 
     def toggle_window_visibility(self, event):
