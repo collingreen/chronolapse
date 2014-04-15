@@ -51,6 +51,10 @@ TODO:
     X make sequential/integer filename options work
     X VERIFY all fields get saved and updated correctly
     X remove all pickle everywhere
+    X fix config file being written to wherever the current working dir is!
+
+    - make video codec stay selected
+    - video encoding is only working for one image, not the entire folder
 
     X use logging module
     - remove VideoCapture dependency - pyopencv only
@@ -205,7 +209,9 @@ class ChronoFrame(chronoFrame):
         logging.debug(
             "Loading configuration file: %s" % self.settings.config_file)
 
-        self.config = EasyConfig(self.settings.config_file, defaults={
+        config_file_path = os.path.abspath(self.settings.config_file)
+
+        self.config = EasyConfig(config_file_path, defaults={
             'chronolapse': {
                 'frequency': '60',
 
@@ -816,6 +822,9 @@ class ChronoFrame(chronoFrame):
     def startCapturePressed(self, event): # wxGlade: chronoFrame.<event_handler>
         text = self.startbutton.GetLabel()
 
+        # update video length
+        self.recalculateVideoLength()
+
         if text == 'Start Capture':
 
             use_screenshot = self.getConfig('use_screenshot')
@@ -1229,11 +1238,11 @@ Please add write permission and try again.""") % webcam_folder)
 
         output_filename = os.path.join(
                                 destfolder,
-                                'timelapse_%s.%s' % (timestamp, outextension)
+                                'timelapse_%s.%s' % (timestamp, out_extension)
                             )
         source_filename = os.path.join(
                                 sourcefolder,
-                                'timelapse_%s.%s' % (timestamp, outextension)
+                                'timelapse_%s.%s' % (timestamp, out_extension)
                             )
 
         # if either file already exists
@@ -1277,7 +1286,7 @@ Please add write permission and try again.""") % webcam_folder)
 ##                    mencoderpath, path, fps, outfile )
 ##            command = '"%s" mf://fps=%s:type=png  -ovc rawrgb -o %s \*.png' % (mencoderpath, fps, outfile)
 ##        else:
-        command = ('"%s" mf://%s -mf fps=%s-ovc lavc -lavcopts vcodec=%s -o %s'
+        command = ('"%s" mf://%s -mf fps=%s -ovc lavc -lavcopts vcodec=%s -o %s'
                         % (mencoderpath, path, fps, codec, output_filename))
 
         logging.debug("Calling: %s"%command)
@@ -1309,8 +1318,8 @@ Please add write permission and try again.""") % webcam_folder)
                             os.path.join(destfolder, output_filename))
                     )
         shutil.move(
-            os.path.join(sourcefolder,output_file),
-            os.path.join(destfolder, output_file)
+            os.path.join(sourcefolder, output_filename),
+            os.path.join(destfolder, output_filename)
         )
 
         progressdialog.Destroy()
@@ -1318,7 +1327,7 @@ Please add write permission and try again.""") % webcam_folder)
         dlg = wx.MessageDialog(
             self,
             'Encoding Complete!\nFile saved as %s' %
-                            os.path.join(destfolder, outfile),
+                            os.path.join(destfolder, output_filename),
             'Encoding Complete',
             style=wx.OK
         )
