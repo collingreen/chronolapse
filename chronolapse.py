@@ -22,7 +22,6 @@ from easyconfig import EasyConfig
 #import cv2
 import numpy
 
-
 import os, sys, shutil, argparse
 import time, datetime
 
@@ -34,9 +33,6 @@ import subprocess
 import urllib, urllib2
 
 import threading
-
-
-
 
 from PIL import Image
 
@@ -249,7 +245,7 @@ class ChronoFrame(chronoFrame):
                 'video_source_folder': '',
                 'video_output_folder': '',
                 'video_format': '',
-                'video_codec': 'wmv2',
+                'video_codec': 'mpeg4',
                 'video_framerate': '10',
                 'mencoder_path': 'mencoder',
 
@@ -364,21 +360,18 @@ class ChronoFrame(chronoFrame):
         # create timer
         self.timer = Timer(self.timerCallBack)
 
-
         # constants
-        # TODO: remove all of these - put everything in config files
         self.VERSION = VERSION
         self.DOCFILE = 'manual.html'
         self.VERSIONCHECKPATH = 'http://chronolapse.com/versioncheck/'
 
         # fill in codecs available
-        # TODO: make this better
-        self.videocodeccombo.SetItems([
-                    'mpeg4', 'msmpeg4', 'msmpeg4v2', 'wmv1', 'mjpeg', 'h263p'])
-
-        # fill in formats
-        #self.videoformatcombo.SetItems(['divx4', 'xvid', 'ffmpeg', 'msmpeg4'])
-
+        video_codecs = [
+            'mpeg4', 'msmpeg4', 'msmpeg4v2', 'wmv1', 'mjpeg', 'h263p']
+        self.videocodeccombo.SetItems(video_codecs)
+        self.videocodeccombo.SetStringSelection(
+            self.getConfig('video_codec', default=video_codecs[0])
+        )
         # check version
         self.checkVersion()
 
