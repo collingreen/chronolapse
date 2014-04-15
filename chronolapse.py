@@ -42,15 +42,6 @@ from PIL import Image
 
 from chronolapsegui import *
 
-# use psyco if available
-try:
-    import psyco
-    psyco.full()
-except ImportError:
-    pass
-
-
-
 """
 
 TODO:
@@ -304,7 +295,6 @@ class ChronoFrame(chronoFrame):
         self._bindUI(self.audiosourcetext, 'audio_source')
         self._bindUI(self.audiooutputfoldertext, 'audio_output_folder')
 
-
         # create custom binding for filename format
         self.Bind(wx.EVT_RADIOBUTTON ,
                     lambda event: self.updateConfig(
@@ -368,7 +358,8 @@ class ChronoFrame(chronoFrame):
 
         # fill in codecs available
         # TODO: make this better
-        self.videocodeccombo.SetItems(['mpeg4', 'msmpeg4', 'msmpeg4v2', 'wmv1', 'mjpeg', 'h263p'])
+        self.videocodeccombo.SetItems([
+                    'mpeg4', 'msmpeg4', 'msmpeg4v2', 'wmv1', 'mjpeg', 'h263p'])
 
         # fill in formats
         #self.videoformatcombo.SetItems(['divx4', 'xvid', 'ffmpeg', 'msmpeg4'])
@@ -376,27 +367,17 @@ class ChronoFrame(chronoFrame):
         # check version
         self.checkVersion()
 
+        # load icon - #TODO: embed with base64?
+        if ON_WINDOWS:
+            icon_file = os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico')
+        else:
+            icon_file = os.path.join(self.CHRONOLAPSEPATH, 'chronolapse_24.ico')
 
-        # TODO: fix this mess
-        if (ON_WINDOWS and os.path.isfile(
-                        os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico'))):
-            self.SetIcon(wx.Icon(
-                        os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico'),
-                        wx.BITMAP_TYPE_ICO))
-        elif (not ON_WINDOWS
-                and os.path.isfile(
-                    os.path.join(self.CHRONOLAPSEPATH, 'chronolapse_24.ico'))):
-            self.SetIcon(wx.Icon(
-                    os.path.join(self.CHRONOLAPSEPATH, 'chronolapse_24.ico'),
-                    wx.BITMAP_TYPE_ICO))
-
-            # disable webcams for now
-            self.webcamcheck.Disable()
-            self.configurewebcambutton.Disable()
+        if os.path.isfile(icon_file):
+            self.SetIcon(wx.Icon(icon_file, wx.BITMAP_TYPE_ICO))
 
         else:
-            logging.debug( 'Could not find %s' %
-                        os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico'))
+            logging.warning( 'Could not find %s' % icon_file)
 
         # autostart
         if self.settings.autostart:
