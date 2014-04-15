@@ -355,7 +355,11 @@ class ChronoFrame(chronoFrame):
         self.cam = None
 
         # image countdown
-        self.countdown = float(self.getConfig('frequency'))
+        self.countdown = 60
+        try:
+            self.countdown = float(self.getConfig('frequency', default=60))
+        except ValueError:
+            pass
 
         # create timer
         self.timer = Timer(self.timerCallBack)
