@@ -57,8 +57,8 @@ TODO:
     X replace optparse with argparse
     X remove all xml everywhere
     X add sequential/integer filenames to config persistence
-    - make sequential/integer filename options work
-    - VERIFY all fields get saved and updated correctly
+    X make sequential/integer filename options work
+    X VERIFY all fields get saved and updated correctly
     X remove all pickle everywhere
 
     X use logging module
@@ -239,6 +239,8 @@ class ChronoFrame(chronoFrame):
                 'webcam_resolution': '800, 600',
 
                 'filename_format': 'timestamp',
+                'timestamp_filename_format': '%Y-%m-%d %H:%M:%S',
+                'sequential_filename_format': '%d',
 
                 'pip_main_folder': '',
                 'pip_pip_folder': '',
@@ -259,7 +261,9 @@ class ChronoFrame(chronoFrame):
                 'audio_output_folder': '',
 
                 'last_update': time.strftime('%Y-%m-%d'),
-                'update_check_frequency': 604800
+                'update_check_frequency': 604800,
+
+                'timestamp_format': '%Y-%m-%d %H:%M:%S'
             }
         })
 
@@ -359,8 +363,6 @@ class ChronoFrame(chronoFrame):
         # constants
         # TODO: remove all of these - put everything in config files
         self.VERSION = VERSION
-        self.FILETIMEFORMAT = '%Y-%m-%d_%H-%M-%S'
-        self.TIMESTAMPFORMAT = '%Y-%m-%d %H:%M:%S'
         self.DOCFILE = 'manual.html'
         self.VERSIONCHECKPATH = 'http://chronolapse.com/versioncheck/'
 
@@ -488,11 +490,37 @@ class ChronoFrame(chronoFrame):
     def capture(self):
 
         # get filename from time
-        filename = time.strftime(self.FILETIMEFORMAT)
+        if self.getConfig('filename_format') == 'timestamp':
+            filename = time.strftime(
+                                self.getConfig('timestamp_filename_format'))
 
-        # use microseconds if capture speed is less than 1
-        if self.countdown < 1:
-            filename = str( time.time() )
+            # use microseconds if capture speed is less than 1
+            if self.countdown < 1:
+                filename = str( time.time() )
+
+        # get sequential filename
+        else:
+            file_list = os.listdir(
+                            os.path.abspath(
+                                self.getConfig('screenshot_save_folder')
+                            )
+                        )
+
+            prefix = self.getConfig('screenshot_prefix')
+            highest_number = 0
+            for fname in file_list:
+                base, extension = os.path.splitext(fname)
+                if base.startswith(prefix):
+                    numeric_base = base[len(prefix):]
+                    try:
+                        highest_number = max(highest_number, int(numeric_base))
+                    except ValueError, e:
+                        # ignore files that are not parsable as numbers
+                        pass
+
+            # create sequential filename
+            filename = (self.getConfig('sequential_filename_format') %
+                            (highest_number + 1))
 
         logging.debug('Capturing - ' + filename)
 
@@ -561,8 +589,10 @@ class ChronoFrame(chronoFrame):
         self.saveImage(img, filename, folder, prefix, file_format)
 
     def takeScreenshot(self, rect = None, timestamp=False):
-        """ Takes a screenshot of the screen at give pos & size (rect).
-        Code from Andrea - http://lists.wxwidgets.org/pipermail/wxpython-users/2007-October/069666.html"""
+        """Takes a screenshot of the screen at give pos & size (rect).
+        Code from Andrea -
+    http://lists.wxwidgets.org/pipermail/wxpython-users/2007-October/069666.html
+        """
 
         # use whole screen if none specified
         if not rect:
@@ -574,7 +604,8 @@ class ChronoFrame(chronoFrame):
 
             try:
                 # use two monitors if checked and available
-                if self.options['screenshotdualmonitor'] and wx.Display_GetCount() > 0:
+                if (self.getConfig('screenshotdualmonitor')
+                    and wx.Display_GetCount() > 0):
                     second = wx.Display(1)
                     x2, y2, width2, height2 = second.GetGeometry()
 
@@ -587,7 +618,7 @@ class ChronoFrame(chronoFrame):
             except Exception, e:
                 self.warning(
                     "Exception while attempting to capture second "
-                    + "monitor: %s"%repr(e))
+                    + "monitor: %s" % repr(e))
 
         #Create a DC for the whole screen area
         dcScreen = wx.ScreenDC()
@@ -617,7 +648,7 @@ class ChronoFrame(chronoFrame):
 
         # write timestamp on image
         if timestamp:
-            stamp = time.strftime(self.TIMESTAMPFORMAT)
+            stamp = time.strftime(self.getConfig('timestamp_format'))
             if self.countdown < 1:
                 now = time.time()
                 micro = str(now - math.floor(now))[0:4]
@@ -656,7 +687,8 @@ class ChronoFrame(chronoFrame):
 
         self.takeWebcam(filename, folder, prefix, file_format, timestamp)
 
-    def takeWebcam(self, filename, folder, prefix, format='jpg', usetimestamp=False):
+    def takeWebcam(
+            self, filename, folder, prefix, format='jpg', usetimestamp=False):
 
         if self.cam is None:
             logging.warning('takeWebcam called with no camera')
@@ -672,7 +704,6 @@ class ChronoFrame(chronoFrame):
                 self.cam.saveSnapshot(filepath, quality=80, timestamp=1)
             else:
                 self.cam.saveSnapshot(filepath, quality=80, timestamp=0)
-
 
         else:
             # JohnColburn says you need to grab a bunch of frames to underflow
@@ -746,7 +777,6 @@ class ChronoFrame(chronoFrame):
         dlg.screenshotsavefoldertext.SetValue(self.getConfig('screenshot_save_folder'))
         dlg.screenshotformatcombo.SetStringSelection(self.getConfig('screenshot_format'))
 
-
         if dlg.ShowModal() == wx.ID_OK:
 
             # save dialog info
@@ -799,31 +829,41 @@ class ChronoFrame(chronoFrame):
 
         if text == 'Start Capture':
 
+            use_screenshot = self.getConfig('use_screenshot')
+            screenshot_folder = os.path.abspath(
+                                    self.getConfig('screenshot_save_folder')
+                                )
+
+            use_webcam = self.getConfig('use_webcam')
+            webcam_folder = os.path.abspath(
+                                    self.getConfig('webcam_save_folder')
+                                )
+
             # check that screenshot and webcam folders are available
-            if (self.getConfig('use_screenshot')
-                and not os.access(
-                        self.getConfig('screenshot_save_folder'), os.W_OK) ):
-                self.showWarning('Cannot Write to Screenshot Folder',
-                'Error: Cannot write to screenshot folder %s. Please add '
-                + 'write permission and try again.' %
-                    self.getConfig('screenshot_save_folder'))
-                return False
+            if use_screenshot:
 
-            if (self.getConfig('use_webcam')
-                    and not os.access(
-                        self.getConfig('webcam_save_folder'), os.W_OK) ):
-                self.showWarning('Cannot Write to Webcam Folder',
-                'Error: Cannot write to webcam folder %s. Please add '
-                + 'write permission and try again.' %
-                    self.getConfig('webcam_save_folder'))
-                return False
+                # check screenshot save folder
+                if not os.access(screenshot_folder, os.W_OK):
+                    self.showWarning('Cannot Write to Screenshot Folder',
+                    ("""Error: Cannot write to screenshot folder %s.
+Please add write permission and try again.""") % screenshot_folder)
+                    return False
 
-            # disable  config buttons, frequency
+            if use_webcam:
+                if not os.access(webcam_folder, os.W_OK):
+                    self.showWarning('Cannot Write to Webcam Folder',
+                        ("""Error: Cannot write to webcam folder %s.
+Please add write permission and try again.""") % webcam_folder)
+                    return False
+
+            # disable config buttons, frequency
             self.screenshotcheck.Disable()
             self.screenshotconfigurebutton.Disable()
             self.configurewebcambutton.Disable()
             self.webcamcheck.Disable()
             self.frequencytext.Disable()
+            self.filename_format_timestamp.Disable()
+            self.filename_format_sequential.Disable()
 
             # change start button text to stop capture
             self.startbutton.SetLabel('Stop Capture')
@@ -845,6 +885,8 @@ class ChronoFrame(chronoFrame):
             self.configurewebcambutton.Enable()
             self.webcamcheck.Enable()
             self.frequencytext.Enable()
+            self.filename_format_timestamp.Enable()
+            self.filename_format_sequential.Enable()
 
             # change start button text to start capture
             self.startbutton.SetLabel('Start Capture')
@@ -1709,7 +1751,11 @@ class WebcamPreviewDialog(webcamPreviewDialog):
 
     def callback(self):
         try:
-            path = self.parent.takeWebcam(os.path.basename(self.temppath), os.path.dirname(self.temppath), '')
+            path = self.parent.takeWebcam(
+                        os.path.basename(self.temppath),
+                        os.path.dirname(self.temppath),
+                        ''
+                    )
 
             if(ON_WINDOWS):
                 bitmap = wx.Bitmap(path, wx.BITMAP_TYPE_JPEG)
