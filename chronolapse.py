@@ -367,7 +367,7 @@ class ChronoFrame(chronoFrame):
         # constants
         self.VERSION = VERSION
         self.DOCFILE = 'manual.html'
-        self.VERSIONCHECKPATH = 'http://chronolapse.com/versioncheck/'
+        self.VERSION_CHECK_PATH = 'http://chronolapse.com/versioncheck/'
 
         # fill in codecs available
         video_codecs = [
@@ -766,8 +766,10 @@ class ChronoFrame(chronoFrame):
 
         dlg.timestampcheck.SetValue(self.getConfig('screenshot_timestamp'))
         dlg.screenshotprefixtext.SetValue(self.getConfig('screenshot_prefix'))
-        dlg.screenshotsavefoldertext.SetValue(self.getConfig('screenshot_save_folder'))
-        dlg.screenshotformatcombo.SetStringSelection(self.getConfig('screenshot_format'))
+        dlg.screenshotsavefoldertext.SetValue(
+                                    self.getConfig('screenshot_save_folder'))
+        dlg.screenshotformatcombo.SetStringSelection(
+                                        self.getConfig('screenshot_format'))
 
         if dlg.ShowModal() == wx.ID_OK:
 
@@ -1639,7 +1641,6 @@ a front end to mencode to take your series of images and turn them into a movie.
                 dlg = wx.MessageDialog(self,
                         "Do you want Chronolapse to check for updates now?",
                        'Check for Updates?',
-                       #wx.OK | wx.ICON_INFORMATION
                        wx.YES_NO
                        )
                 choice = dlg.ShowModal()
@@ -1650,7 +1651,7 @@ a front end to mencode to take your series of images and turn them into a movie.
 
                     # check URL
                     request = urllib2.Request(
-                                self.VERSIONCHECKPATH,
+                                self.VERSION_CHECK_PATH,
                                 urllib.urlencode([('version',self.VERSION)]))
                     page = urllib2.urlopen(request)
 
