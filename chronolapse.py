@@ -49,8 +49,10 @@ TODO:
     X remove all pickle everywhere
     X fix config file being written to wherever the current working dir is!
 
-    - make video codec stay selected
+    X make video codec stay selected
     - video encoding is only working for one image, not the entire folder
+        -- sequential image http://stackoverflow.com/a/13591474
+    X add command line for sequential image format (defaults to %05d)
 
     X use logging module
     - remove VideoCapture dependency - pyopencv only
@@ -127,6 +129,15 @@ class ChronoFrame(chronoFrame):
         parser.add_argument("--config_file",
                 help="The location of the Chronolapse configuration file",
                 default="chronolapse.config")
+
+        # sequential image format
+        parser.add_argument('--sequential_image_format',
+                help="Sets the format string for sequential image file names",
+                default='%05d')
+
+        parser.add_argument('--timestamp_filename_format',
+                help="Sets the format string for timestamp image file names",
+                default='%Y-%m-%d %H:%M:%S')
 
         # --verbose and --debug
         parser.add_argument("-v", "--verbose",
@@ -232,8 +243,6 @@ class ChronoFrame(chronoFrame):
                 'webcam_resolution': '800, 600',
 
                 'filename_format': 'timestamp',
-                'timestamp_filename_format': '%Y-%m-%d %H:%M:%S',
-                'sequential_filename_format': '%d',
 
                 'pip_main_folder': '',
                 'pip_pip_folder': '',
@@ -484,7 +493,7 @@ class ChronoFrame(chronoFrame):
         # get filename from time
         if self.getConfig('filename_format') == 'timestamp':
             filename = time.strftime(
-                                self.getConfig('timestamp_filename_format'))
+                                self.settings.timestamp_filename_format)
 
             # use microseconds if capture speed is less than 1
             if self.countdown < 1:
@@ -511,7 +520,7 @@ class ChronoFrame(chronoFrame):
                         pass
 
             # create sequential filename
-            filename = (self.getConfig('sequential_filename_format') %
+            filename = (self.settings.sequential_image_format %
                             (highest_number + 1))
 
         logging.debug('Capturing - ' + filename)
