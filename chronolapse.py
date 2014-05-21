@@ -3,7 +3,7 @@
     @author: Collin "Keeyai" Green
     @url: keeyai.com, collingreen.com, chronolapse.com
     @summary:
-        ChronoLapse is a tool for making time lapses.
+        ChronoLapse is a tool for making timelapses.
         CL can save both screenshots and webcam captures, and can even do them both
         at the same time so they are 'synced' together. In addition to saving the
         images, CL has some processing tools to compile your images into video,
@@ -231,6 +231,7 @@ class ChronoFrame(chronoFrame):
 
                 'use_screenshot': True,
                 'screenshot_timestamp': True,
+                'screenshot_timestamp_format': '%Y-%m-%d %H:%M:%S',
                 'screenshot_save_folder': 'screenshots',
                 'screenshot_prefix': 'screen_',
                 'screenshot_format': 'jpg',
