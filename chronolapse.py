@@ -19,9 +19,7 @@ import logging
 
 from easyconfig import EasyConfig
 
-#import cv2
-import numpy
-
+import cv2
 import os, sys, shutil, argparse
 import time, datetime
 
@@ -34,7 +32,7 @@ import urllib, urllib2
 
 import threading
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from chronolapsegui import *
 
@@ -50,44 +48,53 @@ TODO:
     X fix config file being written to wherever the current working dir is!
 
     X make video codec stay selected
-    - video encoding is only working for one image, not the entire folder
-        -- sequential image http://stackoverflow.com/a/13591474
     X add command line for sequential image format (defaults to %05d)
-
-    X use logging module
-    - remove VideoCapture dependency - pyopencv only
-    - camera selection UI
     X remove adjust frame
 
     X remove keeyai.com
     X add file menu -> quit
+    X use logging module
+
+    - camera selection UI -- try to find valid cams, dropdown of all, show output from camera in popup
+    X opencv camera captures
+    - sequential timestamps overwriting when only cam (no screenshot)
+
+    - better timestamp options, write background color under foreground color
+    - update icons
+    - clean up windows branching code
+
+    - Variables in save paths %YEAR%, %MONTH%, %DAY%, %HOUR%, %MINUTE%, %SECOND%
+    - Ability to enter Video Length and get FPS calculated
+    - Verify multi monitor + subscreen timestamps are still visible (expect they are cut off)
+    - Verify height setting controls the height of the input, not the distance from the bottom of the screen
+-- Version 2.0.0
+
+    - encode to gif - visvis.vvmovie.images2gif import writeGif
+    - use existence of specified local file to prevent captures
+    - chronoslices
+-- Version 2.1.0
+
+    - UI to select multiple cameras at once
+    - pip function, optional prefix (ie, one camera output at a time)
+-- Version 2.2.0
+
+
+--
+    - move and reimplement version check - use google analytics
     - add donate menu
     - add donate level in title bar
+    - package with better MEncoder
+
+
+
 
 
     - test autostart
     - test all functionality
-    - move and reimplement version check - use google analytics
-    - update icons
-
-    - clean up windows branching code
     - clean up code everywhere possible
     - better encoding options - not MEncoder? better compilation of MEncoder?
         -- write own simple encoder?
 
-    - option to save files in timestamp format or sequential integer format
-    - chronolapse file format? includes image and metadata
-
-    - better timestamp options, write background color under foreground color
-
-    - multi cam support
-
-    - figure out how to add plugins for both UI and for functionality
-    - use existence of specified local file to prevent captures
-
-    - chronoslices
-
-    - find a clean way to communicate with the process while it is running
 """
 
 
@@ -237,10 +244,15 @@ class ChronoFrame(chronoFrame):
 
                 'use_webcam': False,
                 'webcam_timestamp': True,
+                'webcam_timestamp_format': '%Y-%m-%d %H:%M:%S',
                 'webcam_save_folder': 'webcam',
                 'webcam_prefix': 'cam_',
                 'webcam_format': 'jpg',
-                'webcam_resolution': '800, 600',
+                'webcam_timestamp_top': 10,
+                'webcam_timestamp_left': 10,
+                'webcam_timestamp_red': 255,
+                'webcam_timestamp_green': 255,
+                'webcam_timestamp_blue': 255,
 
                 'filename_format': 'timestamp',
 
@@ -263,9 +275,7 @@ class ChronoFrame(chronoFrame):
                 'audio_output_folder': '',
 
                 'last_update': time.strftime('%Y-%m-%d'),
-                'update_check_frequency': 604800,
-
-                'timestamp_format': '%Y-%m-%d %H:%M:%S'
+                'update_check_frequency': 604800
             }
         })
 
@@ -286,8 +296,8 @@ class ChronoFrame(chronoFrame):
         # bind all the ui fields to the config manager
         logging.debug("Binding events")
         self._bindUI(self.frequencytext, 'frequency')
-        self._bindUI(self.screenshotcheck, 'uses_screenshot')
-        self._bindUI(self.webcamcheck, 'uses_webcam')
+        self._bindUI(self.screenshotcheck, 'use_screenshot')
+        self._bindUI(self.webcamcheck, 'use_webcam')
 
         self._bindUI(self.pipmainimagefoldertext, 'pip_main_folder')
         self._bindUI(self.pippipimagefoldertext, 'pip_pip_folder')
@@ -532,40 +542,11 @@ class ChronoFrame(chronoFrame):
 
         # if webcam
         if self.getConfig('use_webcam'):
+
             # take webcam shot
             self.saveWebcam(filename)
 
         return filename
-
-    def initCam(self, devnum=0):
-        if self.cam is None:
-            if ON_WINDOWS:
-                try:
-                    self.cam = Device(devnum,0)
-
-                    try:
-                        self.cam.setResolution(640, 480)
-                    except:
-                        pass
-
-                    return True
-                except Exception, e:
-                    logging.error('initCam -- failed to initialize camera')
-                    logging.debug('Exception: %s' % repr(e))
-                    self.showWarning('No Webcam Found', 'No webcam found on your system')
-                    self.cam = None
-                return False
-            else:
-                try:
-                    self.cam = cv.CaptureFromCAM(devnum)
-                    if not self.cam:
-                        self.cam = None
-                        logging.error('initCam -- failed to initialize camera')
-                    else:
-                        return True
-                except:
-                    logging.error('initCam -- failed to initialize camera')
-        return False
 
     def saveScreenshot(self, filename):
         timestamp = self.getConfig('screenshot_timestamp')
@@ -649,7 +630,12 @@ class ChronoFrame(chronoFrame):
 
         # write timestamp on image
         if timestamp:
-            stamp = time.strftime(self.getConfig('timestamp_format'))
+            try:
+                stamp = time.strftime(self.getConfig('screenshot_timestamp_format'))
+            except ValueError:
+                logging.error("Invalid screenshot timestamp format")
+                return
+
             if self.countdown < 1:
                 now = time.time()
                 micro = str(now - math.floor(now))[0:4]
@@ -682,64 +668,81 @@ class ChronoFrame(chronoFrame):
 
     def saveWebcam(self, filename):
         timestamp = self.getConfig('webcam_timestamp')
+        timestamp_format = self.getConfig('webcam_timestamp_format')
         folder = self.getConfig('webcam_save_folder')
         prefix = self.getConfig('webcam_prefix')
         file_format = self.getConfig('webcam_format')
 
-        self.takeWebcam(filename, folder, prefix, file_format, timestamp)
+        self.takeWebcam(
+            filename, folder, prefix, file_format, timestamp, timestamp_format)
 
-    def takeWebcam(
-            self, filename, folder, prefix, format='jpg', usetimestamp=False):
+    def getWebcamCapture(self, device_number=0):
+        # turn on camera, capture, turn off
+        cam = cv2.VideoCapture(device_number)
+        # first read from opencv cam seems unreliable
+        result, image = cam.read()
+        result, image = cam.read()
+        cam.release()
 
-        if self.cam is None:
-            logging.warning('takeWebcam called with no camera')
+        if result:
+            return image
+        return None
+
+    def takeWebcam(self,
+        filename, folder,
+        prefix, file_format='jpg',
+        use_timestamp=False, timestamp_format=None):
+
+        # build filepath
+        filepath = os.path.join(
+                    folder,"%s%s.%s" % (prefix, filename, file_format))
+
+        # get image from webcam
+        image = self.getWebcamCapture()
+
+        if image is None:
+            logging.warning("No image returned from camera")
+            return None
+
+        # write timestamp as necessary
+        if use_timestamp:
+
+            # if no format passed in, get from config
+            if timestamp_format is None:
+                timestamp_format = self.getConfig('webcam_timestamp_format')
+
+            # build timestamp
+            stamp = None
             try:
-                self.initCam()
-            except:
-                return False
+                stamp = time.strftime(timestamp_format)
+            except ValueError:
+                logging.error("Invalid timestamp format")
 
-        filepath = os.path.join(folder,"%s%s.%s" % (prefix, filename, format))
+            if stamp:
 
-        if ON_WINDOWS:
-            if usetimestamp:
-                self.cam.saveSnapshot(filepath, quality=80, timestamp=1)
-            else:
-                self.cam.saveSnapshot(filepath, quality=80, timestamp=0)
+                logging.debug("Writing timestamp %s" % stamp)
+
+                top = self.getConfig('webcam_timestamp_top')
+                left = self.getConfig('webcam_timestamp_left')
+
+                # convert to pil image
+                converted = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(converted)
+                r,g,b = (self.getConfig('webcam_timestamp_red'),
+                            self.getConfig('webcam_timestamp_green'),
+                            self.getConfig('webcam_timestamp_blue'))
+                draw = ImageDraw.Draw(pil_image)
+                #font = ImageFont.truetype("sans-serif.ttf", 16)
+                font = ImageFont.load_default()
+                #draw.text((0, 0), stamp, (255,255,255), font=font)
+                draw.text( (top, left), stamp, fill=(255,255,255), font=font)
+                pil_image.save(filepath)
 
         else:
-            # JohnColburn says you need to grab a bunch of frames to underflow
-            # the buffer to have a time-accurate frame
-            camera = self.cam
-            cv.GrabFrame(camera)
-    ##        cv.GrabFrame(camera)
-    ##        cv.GrabFrame(camera)
-    ##        cv.GrabFrame(camera)
-    ##        cv.GrabFrame(camera)
-            im = cv.RetrieveFrame(camera)
+            logging.debug("Not writing timestamp")
 
-            if im is False:
-                logging.debug('Error - could not get frame from camera')
-                return False
-
-            #cv.Flip(im, None, 1)
-
-            # write timestamp as necessary
-            if usetimestamp:
-
-                # build timestamp
-                stamp = time.strftime(self.TIMESTAMPFORMAT)
-                now = time.time()
-                micro = str(now - math.floor(now))[0:4]
-                stamp = stamp + micro
-
-                # TODO: try to write timestamp out with PIL or something else
-                # this *might* be the cause of weird ubuntu errors
-                mark = (20, 30)
-                font = cv.InitFont(cv.CV_FONT_HERSHEY_COMPLEX, 0.75, 0.75, 0.0, 2, cv.CV_AA)
-                cv.PutText(im,stamp,mark,font,cv.RGB(0,0,0))
-
-            logging.debug('Saving image to %s' % filepath)
-            cv.SaveImage(filepath, im)
+            # write file
+            cv2.imwrite(filepath, image)
 
         return filepath
 
@@ -748,7 +751,7 @@ class ChronoFrame(chronoFrame):
         dlg.ShowModal()
         dlg.Destroy()
 
-    def screenshotConfigurePressed(self, event): # wxGlade: chronoFrame.<event_handler>
+    def screenshotConfigurePressed(self, event):
         dlg = ScreenshotConfigDialog(self)
 
         # save reference to this
@@ -774,6 +777,8 @@ class ChronoFrame(chronoFrame):
         self.subsectionchecked()
 
         dlg.timestampcheck.SetValue(self.getConfig('screenshot_timestamp'))
+        dlg.screenshot_timestamp_format.SetValue(
+                                    self.getConfig('screenshot_timestamp_format'))
         dlg.screenshotprefixtext.SetValue(self.getConfig('screenshot_prefix'))
         dlg.screenshotsavefoldertext.SetValue(
                                     self.getConfig('screenshot_save_folder'))
@@ -785,6 +790,7 @@ class ChronoFrame(chronoFrame):
             # save dialog info
             self.updateConfig({
                 'screenshot_timestamp': dlg.timestampcheck.IsChecked(),
+                'screenshot_timestamp_format': dlg.screenshot_timestamp_format.GetValue(),
                 'screenshot_prefix': dlg.screenshotprefixtext.GetValue(),
                 'screenshot_save_folder': dlg.screenshotsavefoldertext.GetValue(),
                 'screenshot_format': dlg.screenshotformatcombo.GetStringSelection(),
@@ -802,12 +808,12 @@ class ChronoFrame(chronoFrame):
     def webcamConfigurePressed(self, event):
         dlg = WebcamConfigDialog(self)
 
-        if dlg.hascam:
+        if dlg.has_cam:
             # set current options in dlg
             dlg.webcamtimestampcheck.SetValue(
                                             self.getConfig('webcam_timestamp'))
-            dlg.webcamresolutioncombo.SetStringSelection(
-                                            self.getConfig('webcam_resolution'))
+            dlg.webcam_timestamp_format.SetValue(
+                                    self.getConfig('webcam_timestamp_format'))
             dlg.webcamprefixtext.SetValue(self.getConfig('webcam_prefix'))
             dlg.webcamsavefoldertext.SetValue(
                                         self.getConfig('webcam_save_folder'))
@@ -816,10 +822,12 @@ class ChronoFrame(chronoFrame):
 
             if dlg.ShowModal() == wx.ID_OK:
 
+                logging.debug("Saving webcam folder %s" % dlg.webcamsavefoldertext.GetValue())
+
                 # save dialog info
                 self.updateConfig({
                     'webcam_timestamp': dlg.webcamtimestampcheck.IsChecked(),
-                    'webcam_resolution': dlg.webcamresolutioncombo.GetStringSelection(),
+                    'webcam_timestamp_format': dlg.webcam_timestamp_format.GetValue(),
                     'webcam_prefix': dlg.webcamprefixtext.GetValue(),
                     'webcam_save_folder': dlg.webcamsavefoldertext.GetValue(),
                     'webcam_format': dlg.webcamformatcombo.GetStringSelection()
@@ -873,11 +881,6 @@ Please add write permission and try again.""") % webcam_folder)
 
             # change start button text to stop capture
             self.startbutton.SetLabel('Stop Capture')
-
-            # if webcam set, initialize webcam - use resolution setting
-            if self.getConfig('use_webcam'):
-                # initialize webcam
-                self.initCam()
 
             # start timer
             if float(self.getConfig('frequency')) > 0:
@@ -1294,6 +1297,7 @@ Please add write permission and try again.""") % webcam_folder)
 ##                    mencoderpath, path, fps, outfile )
 ##            command = '"%s" mf://fps=%s:type=png  -ovc rawrgb -o %s \*.png' % (mencoderpath, fps, outfile)
 ##        else:
+
         command = ('"%s" mf://%s -mf fps=%s -ovc lavc -lavcopts vcodec=%s -o %s'
                         % (mencoderpath, path, fps, codec, output_filename))
 
@@ -1774,25 +1778,14 @@ class WebcamConfigDialog(webcamConfigDialog):
         webcamConfigDialog.__init__(self, *args, **kwargs)
 
         # get cam
-        self.hascam = False
+        self.has_cam = False
         try:
-            if self.GetParent().initCam():
-                self.hascam = True
-                logging.debug('Found Camera')
-
-                if ON_WINDOWS:
-                    try:
-                        self.cam.displayCapturePinProperties()
-                    except:
-                        pass
-
+            image = self.GetParent().getWebcamCapture()
+            self.has_cam = True
         except Exception, e:
             self.GetParent().showWarning(
-                        'No Webcam Found', 'No webcam found on your system.')
-            self.hascam = False
+                        'No Webcam Found', 'Could not initialize camera.')
             logging.error(repr(e))
-
-        if not self.hascam:
             self.GetParent().webcamcheck.SetValue(False)
 
     def webcamSaveFolderBrowse(self, event):
@@ -1802,10 +1795,11 @@ class WebcamConfigDialog(webcamConfigDialog):
                     self.GetParent().getConfig('webcam_save_folder'))
 
         if path is not '':
+            self.webcamsavefoldertext.SetValue(path)
             self.GetParent().updateConfig({'webcam_save_folder': path})
 
     def testWebcamPressed(self, event):
-        if self.hascam:
+        if self.has_cam:
             self.temppath = tempfile.mkstemp('.jpg')[1]
             self.temppath = self.temppath[:-4]
             # takeWebcam automatically appends the extension again
@@ -1850,21 +1844,18 @@ class WebcamPreviewDialog(webcamPreviewDialog):
                         ''
                     )
 
-            if(ON_WINDOWS):
-                bitmap = wx.Bitmap(path, wx.BITMAP_TYPE_JPEG)
-            else:
-                # try this so WX doesnt freak out if the file isnt a bitmap
-                pilimage = Image.open(path)
-                myWxImage = wx.EmptyImage( pilimage.size[0], pilimage.size[1] )
-                myWxImage.SetData( pilimage.convert( 'RGB' ).tostring() )
-                bitmap = myWxImage.ConvertToBitmap()
+            # try this so WX doesnt freak out if the file isnt a bitmap
+            pilimage = Image.open(path)
+            myWxImage = wx.EmptyImage( pilimage.size[0], pilimage.size[1] )
+            myWxImage.SetData( pilimage.convert( 'RGB' ).tostring() )
+            bitmap = myWxImage.ConvertToBitmap()
 
             self.previewbitmap.SetBitmap(bitmap)
             self.previewbitmap.CenterOnParent()
 
         except Exception, e:
-            self.parent.debug(repr(e))
-            pass
+            logging.debug(
+                    "Exception while showing camera preview: %s" % repr(e))
 
 
 class Timer(wx.Timer):
