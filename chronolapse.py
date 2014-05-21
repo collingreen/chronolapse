@@ -57,11 +57,11 @@ TODO:
 
     - camera selection UI -- try to find valid cams, dropdown of all, show output from camera in popup
     X opencv camera captures
-    - sequential timestamps overwriting when only cam (no screenshot)
+    X sequential timestamps overwriting when only cam (no screenshot)
 
-    - better timestamp options, write background color under foreground color
+    X better timestamp options
     - update icons
-    - clean up windows branching code
+    X clean up windows branching code
 
     - Variables in save paths %YEAR%, %MONTH%, %DAY%, %HOUR%, %MINUTE%, %SECOND%
     - Ability to enter Video Length and get FPS calculated
@@ -511,23 +511,42 @@ class ChronoFrame(chronoFrame):
 
         # get sequential filename
         else:
-            file_list = os.listdir(
+            highest_number = 0
+            if self.getConfig('use_screenshot'):
+                screenshot_file_list = os.listdir(
+                                os.path.abspath(
+                                    self.getConfig('screenshot_save_folder')
+                                )
+                            )
+
+                prefix = self.getConfig('screenshot_prefix')
+                for fname in screenshot_file_list:
+                    base, extension = os.path.splitext(fname)
+                    if base.startswith(prefix):
+                        numeric_base = base[len(prefix):]
+                        try:
+                            highest_number = max(highest_number, int(numeric_base))
+                        except ValueError, e:
+                            # ignore files that are not parsable as numbers
+                            pass
+
+            if self.getConfig('use_webcam'):
+                webcam_file_list = os.listdir(
                             os.path.abspath(
-                                self.getConfig('screenshot_save_folder')
+                                self.getConfig('webcam_save_folder')
                             )
                         )
 
-            prefix = self.getConfig('screenshot_prefix')
-            highest_number = 0
-            for fname in file_list:
-                base, extension = os.path.splitext(fname)
-                if base.startswith(prefix):
-                    numeric_base = base[len(prefix):]
-                    try:
-                        highest_number = max(highest_number, int(numeric_base))
-                    except ValueError, e:
-                        # ignore files that are not parsable as numbers
-                        pass
+                prefix = self.getConfig('webcam_prefix')
+                for fname in webcam_file_list:
+                    base, extension = os.path.splitext(fname)
+                    if base.startswith(prefix):
+                        numeric_base = base[len(prefix):]
+                        try:
+                            highest_number = max(highest_number, int(numeric_base))
+                        except ValueError, e:
+                            # ignore files that are not parsable as numbers
+                            pass
 
             # create sequential filename
             filename = (self.settings.sequential_image_format %
