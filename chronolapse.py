@@ -55,7 +55,7 @@ TODO:
     X add file menu -> quit
     X use logging module
 
-    - camera selection UI -- try to find valid cams, dropdown of all, show output from camera in popup
+    X support selecting cameras -- openCV doesn't do this well - exposed as config
     X opencv camera captures
     X sequential timestamps overwriting when only cam (no screenshot)
 
@@ -254,6 +254,7 @@ class ChronoFrame(chronoFrame):
                 'webcam_timestamp_red': 255,
                 'webcam_timestamp_green': 255,
                 'webcam_timestamp_blue': 255,
+                'webcam_device_number': 0,
 
                 'filename_format': 'timestamp',
 
@@ -696,7 +697,10 @@ class ChronoFrame(chronoFrame):
         self.takeWebcam(
             filename, folder, prefix, file_format, timestamp, timestamp_format)
 
-    def getWebcamCapture(self, device_number=0):
+    def getWebcamCapture(self):
+        # get the device number from config
+        device_number = self.getConfig('webcam_device_number')
+
         # turn on camera, capture, turn off
         cam = cv2.VideoCapture(device_number)
         # first read from opencv cam seems unreliable
