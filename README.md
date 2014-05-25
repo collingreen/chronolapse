@@ -31,34 +31,34 @@ library to support webcam captures on all platforms.
 Command Line Options
 --------------------
 
--a / --autostart
+- -a / --autostart
     Automatically starts capturing immediately
 
--b / --background
+- -b / --background
     Starts Chronolapse in the background without showing
     the frame at all. You can open the Chronolapse window
     from the taskbar on supported systems.
 
---config_file
+- --config_file
     The location of the configuration file. If not found, a new
     one will be created at this location. This must be writable.
     Defaults to 'chronolapse.config'
 
---sequential_image_format 
+- --sequential_image_format 
     Sets the format string for sequential image filenames
     using python's string formatting and passing in the next
     integer number.
     Defaults to '%05d'
 
---timestamp_filename_format
+- --timestamp_filename_format
     Sets the format string for rendering timestamps on images
     using python's datetime.strftime function.
     Defaults to '%Y-%m-%d %H:%M:%S'
 
--v / --verbose
+- -v / --verbose
     Increases command line output
 
--d / --debug
+- -d / --debug
     Greatly increases command line output. Helpful for debugging.
 
 
@@ -90,6 +90,7 @@ Chronolapse itself. However, there are several advanced options
 that can only be changed by editing the configuration.
 
 *Changing Camera*
+
 OpenCV does not do a great job of enumerating the available 
 capture devices, but it is possible to manually specify the
 device number you wish to use by editing the
