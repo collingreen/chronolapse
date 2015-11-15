@@ -23,55 +23,55 @@ $(document).ready(function($) {
 			}
 		);
 
-		$("html").niceScroll({
-			smoothscroll: true, // scroll with ease movement
-			autohidemode: false,
-			zindex: "100", // change z-index for scrollbar div
-        	scrollspeed: 60, // scrolling speed
-        	mousescrollstep: 40,
-        	gesturezoom: false,
-        	horizrailenabled: false,
-        	cursorcolor: "#151515",
-	        boxzoom: false,
-	        cursorborder: "0 solid #202020",
-	        cursorborderradius: "5px",
-	        cursorwidth: 9,
-	        enablemousewheel: true,
-	        background: "rgba(255,255,255,0.7)",
-		});
+		// $("html").niceScroll({
+		// 	smoothscroll: true, // scroll with ease movement
+		// 	autohidemode: false,
+		// 	zindex: "100", // change z-index for scrollbar div
+        	// scrollspeed: 60, // scrolling speed
+        	// mousescrollstep: 40,
+        	// gesturezoom: false,
+        	// horizrailenabled: false,
+        	// cursorcolor: "#151515",
+	        // boxzoom: false,
+	        // cursorborder: "0 solid #202020",
+	        // cursorborderradius: "5px",
+	        // cursorwidth: 9,
+	        // enablemousewheel: true,
+	        // background: "rgba(255,255,255,0.7)",
+		// });
 
 		// Page transitions
-		$(".animsition").animsition({
+		// $(".animsition").animsition({
 
-			inClass               :   'fade-in',
-			outClass              :   'fade-out-down-sm',
-			inDuration            :    900,
-			outDuration           :    800,
-			linkElement           :   '.animsition-link', 
-			//e.g. linkElement   :   'a:not([target="_blank"]):not([href^=#])'
-			loading               :    true,
-			loadingParentElement  :   'body', //animsition wrapper element
-			loadingClass          :   'animsition-loading',
-			unSupportCss          : [ 'animation-duration',
-			                          '-webkit-animation-duration',
-			                          '-o-animation-duration'
-			                        ],
-			//"unSupportCss" option allows you to disable the "animsition" in case the css property in the array is not supported by your browser. 
-			//The default setting is to disable the "animsition" in a browser that does not support "animation-duration".
+		// 	inClass               :   'fade-in',
+		// 	outClass              :   'fade-out-down-sm',
+		// 	inDuration            :    900,
+		// 	outDuration           :    800,
+		// 	linkElement           :   '.animsition-link', 
+		// 	//e.g. linkElement   :   'a:not([target="_blank"]):not([href^=#])'
+		// 	loading               :    true,
+		// 	loadingParentElement  :   'body', //animsition wrapper element
+		// 	loadingClass          :   'animsition-loading',
+		// 	unSupportCss          : [ 'animation-duration',
+		// 	                          '-webkit-animation-duration',
+		// 	                          '-o-animation-duration'
+		// 	                        ],
+		// 	//"unSupportCss" option allows you to disable the "animsition" in case the css property in the array is not supported by your browser. 
+		// 	//The default setting is to disable the "animsition" in a browser that does not support "animation-duration".
 
-			overlay               :   false,
+		// 	overlay               :   false,
 
-			overlayClass          :   'animsition-overlay-slide',
-			overlayParentElement  :   'body'
-		});
+		// 	overlayClass          :   'animsition-overlay-slide',
+		// 	overlayParentElement  :   'body'
+		// });
 
 		// WOW plugin settings
-        var wow = new WOW(
-          { animateClass: 'animated', // set our global css classT (default is animated)
-            offset: 250, // set distance to content until it triggers (default is 0)
-            mobile: false, // remove animations for mobiles/tablets (default is true)
-            live: true }); // act on asynchronously loaded content (default is true)
-        new WOW().init();
+        // var wow = new WOW(
+        //   { animateClass: 'animated', // set our global css classT (default is animated)
+        //     offset: 250, // set distance to content until it triggers (default is 0)
+        //     mobile: false, // remove animations for mobiles/tablets (default is true)
+        //     live: true }); // act on asynchronously loaded content (default is true)
+        // new WOW().init();
 
 		// Functionailty constraints for mobile
 		if (!Modernizr.touch) {
@@ -173,17 +173,17 @@ $(document).ready(function($) {
 
 }(jQuery)); // End "use strict"
 
-// Enable dropdown sub-menus in off-canvas navigation
-$(document).ready(function($) {
-	$('.sb-toggle-submenu').off('click') // Stop submenu toggle from closing Slidebars.
-		.on('click', function() {
-			$submenu = $(this).parent().children('.sb-submenu');
-			$(this).add($submenu).toggleClass('sb-submenu-active'); // Toggle active class.
+// // Enable dropdown sub-menus in off-canvas navigation
+// $(document).ready(function($) {
+// 	$('.sb-toggle-submenu').off('click') // Stop submenu toggle from closing Slidebars.
+// 		.on('click', function() {
+// 			$submenu = $(this).parent().children('.sb-submenu');
+// 			$(this).add($submenu).toggleClass('sb-submenu-active'); // Toggle active class.
 
-			if ($submenu.hasClass('sb-submenu-active')) {
-			$submenu.slideDown(200);
-			} else {
-			$submenu.slideUp(200);
-		}
-	});
-});
+// 			if ($submenu.hasClass('sb-submenu-active')) {
+// 			$submenu.slideDown(200);
+// 			} else {
+// 			$submenu.slideUp(200);
+// 		}
+// 	});
+// });
