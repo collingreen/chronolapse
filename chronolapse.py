@@ -607,7 +607,7 @@ class ChronoFrame(chronoFrame):
 
             try:
                 # use two monitors if checked and available
-                if (self.getConfig('screenshotdualmonitor')
+                if (self.getConfig('screenshot_dual_monitor')
                     and wx.Display_GetCount() > 0):
                     second = wx.Display(1)
                     x2, y2, width2, height2 = second.GetGeometry()
