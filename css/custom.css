@@ -17,3 +17,7 @@ footer a:link {
   height: 100%;
   min-height: 500px;
 }
+
+#featured .featured-item {
+  height: 250px;
+}
