@@ -11,12 +11,11 @@
     @license: MIT license
 """
 
-VERSION = '2.0.0alpha'
+VERSION = '2.0.0'
 
 import wx
 import wx.lib.masked as masked
 import logging
-
 from easyconfig import EasyConfig
 
 import cv2
@@ -25,7 +24,7 @@ import time, datetime
 
 import tempfile
 import textwrap
-
+import numpy  # so pyinstaller packages it
 import math
 import subprocess
 import urllib, urllib2
@@ -33,6 +32,15 @@ import urllib, urllib2
 import threading
 
 from PIL import Image, ImageDraw, ImageFont
+
+logging.basicConfig(level=logging.ERROR)
+
+can_check_idle_time = False
+try:
+    import win32api
+    can_check_idle_time = True
+except:
+    pass
 
 from chronolapsegui import *
 
@@ -236,6 +244,7 @@ class ChronoFrame(chronoFrame):
                 'screenshot_prefix': 'screen_',
                 'screenshot_format': 'jpg',
                 'screenshot_dual_monitor': False,
+		'skip_if_idle': False,
 
                 'screenshot_subsection': False,
                 'screenshot_subsection_top': '0',
@@ -300,6 +309,7 @@ class ChronoFrame(chronoFrame):
         self._bindUI(self.frequencytext, 'frequency')
         self._bindUI(self.screenshotcheck, 'use_screenshot')
         self._bindUI(self.webcamcheck, 'use_webcam')
+        self._bindUI(self.ignoreidlecheck, 'skip_if_idle')
 
         self._bindUI(self.pipmainimagefoldertext, 'pip_main_folder')
         self._bindUI(self.pippipimagefoldertext, 'pip_pip_folder')
@@ -400,6 +410,9 @@ class ChronoFrame(chronoFrame):
         # check version
         self.checkVersion()
 
+        # for idle checking (win only)
+        self.last_event_info = None
+
         # load icon - #TODO: embed with base64?
         if ON_WINDOWS:
             icon_file = os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico')
@@ -497,10 +510,25 @@ class ChronoFrame(chronoFrame):
 
         # Destroy the dialog.
         dlg.Destroy()
-
         return path
 
-    def capture(self):
+    def hasBeenIdle(self):
+        if can_check_idle_time:
+            previous_event_info = self.last_event_info
+            event_info = win32api.GetLastInputInfo()
+            self.last_event_info = event_info
+            if previous_event_info == event_info:
+                return True
+        return False
+
+
+    def capture(self, force=False):
+
+        # check if idle if necessary
+	if not force and self.getConfig('skip_if_idle'):
+            if self.hasBeenIdle():
+                logging.debug('Skipping Capture - Idle')
+                return
 
         # get filename from time
         if self.getConfig('filename_format') == 'timestamp':
@@ -896,6 +924,7 @@ Please add write permission and try again.""") % webcam_folder)
 
             # disable config buttons, frequency
             self.screenshotcheck.Disable()
+            self.ignoreidlecheck.Disable()
             self.screenshotconfigurebutton.Disable()
             self.configurewebcambutton.Disable()
             self.webcamcheck.Disable()
@@ -914,6 +943,7 @@ Please add write permission and try again.""") % webcam_folder)
 
             # enable config buttons, frequency
             self.screenshotcheck.Enable()
+            self.ignoreidlecheck.Enable()
             self.screenshotconfigurebutton.Enable()
             self.configurewebcambutton.Enable()
             self.webcamcheck.Enable()
@@ -929,7 +959,7 @@ Please add write permission and try again.""") % webcam_folder)
 
     def forceCapturePressed(self, event):
         # save a capture right now
-        self.capture()
+        self.capture(force=True)
 
     def pipMainImageBrowsePressed(self, event):
         path = self.dirBrowser('Select folder containing main images',
