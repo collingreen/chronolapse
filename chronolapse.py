@@ -3,7 +3,7 @@
     @author: Collin "Keeyai" Green
     @url: keeyai.com, collingreen.com, chronolapse.com
     @summary:
-        ChronoLapse is a tool for making timelapses.
+        Chronolapse is a tool for making timelapses.
         CL can save both screenshots and webcam captures, and can even do them both
         at the same time so they are 'synced' together. In addition to saving the
         images, CL has some processing tools to compile your images into video,
@@ -1657,7 +1657,7 @@ Please add write permission and try again.""") % webcam_folder)
         info = wx.AboutDialogInfo()
         info.Name = "Chronolapse"
         info.Version = self.VERSION
-        info.Copyright = '(C) 2008-2014 Collin Green'
+        info.Copyright = '(C) 2008-2016 Collin Green'
 
         description = """Chronolapse (CL) is a tool for creating time lapses on windows using
 screen captures, webcam captures, or both at the same time. CL also provides
@@ -1668,22 +1668,6 @@ a front end to mencode to take your series of images and turn them into a movie.
         info.Description = '\n'.join(textwrap.wrap(description, 70))
         info.WebSite = ("http://chronolapse.com/", "Chronolapse")
         info.Developers = [ 'Collin "Keeyai" Green']
-
-        if os.path.isfile( os.path.join( self.CHRONOLAPSEPATH, 'license.txt')):
-            licensefile = file(
-                            os.path.join(
-                                self.CHRONOLAPSEPATH,
-                                'license.txt'
-                            ),
-                            'r')
-            licensetext = licensefile.read()
-            licensefile.close()
-        else:
-            licensetext = 'License file not found. Please contact the ' + \
-                            'developers for a copy of the license.'
-
-        licensetext.replace('\n', ' ')
-        info.License = '\n'.join(textwrap.wrap(licensetext,70))
 
         # Then we call wx.AboutBox giving it that info object
         wx.AboutBox(info)
