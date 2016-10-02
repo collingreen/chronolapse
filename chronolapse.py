@@ -89,7 +89,7 @@ class ChronoFrame(chronoFrame):
 
         parser.add_argument('--timestamp_filename_format',
                 help="Sets the format string for timestamp image file names",
-                default='%Y-%m-%d %H:%M:%S')
+                default='%Y-%m-%d_%H-%M-%S')
 
         # --verbose and --debug
         parser.add_argument("-v", "--verbose",
