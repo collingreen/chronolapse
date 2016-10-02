@@ -11,7 +11,7 @@
     @license: MIT license
 """
 
-VERSION = '2.0.0'
+VERSION = '1.9.0'
 
 import wx
 import wx.lib.masked as masked
@@ -43,69 +43,6 @@ except:
     pass
 
 from chronolapsegui import *
-
-"""
-
-TODO:
-    X replace optparse with argparse
-    X remove all xml everywhere
-    X add sequential/integer filenames to config persistence
-    X make sequential/integer filename options work
-    X VERIFY all fields get saved and updated correctly
-    X remove all pickle everywhere
-    X fix config file being written to wherever the current working dir is!
-
-    X make video codec stay selected
-    X add command line for sequential image format (defaults to %05d)
-    X remove adjust frame
-
-    X remove keeyai.com
-    X add file menu -> quit
-    X use logging module
-
-    X support selecting cameras -- openCV doesn't do this well - exposed as config
-    X opencv camera captures
-    X sequential timestamps overwriting when only cam (no screenshot)
-
-    X better timestamp options
-    - update icons
-    X clean up windows branching code
-
-    - Variables in save paths %YEAR%, %MONTH%, %DAY%, %HOUR%, %MINUTE%, %SECOND%
-    - Ability to enter Video Length and get FPS calculated
-    - Verify multi monitor + subscreen timestamps are still visible (expect they are cut off)
-    - Verify height setting controls the height of the input, not the distance from the bottom of the screen
--- Version 2.0.0
-
-    - encode to gif - visvis.vvmovie.images2gif import writeGif
-    - use existence of specified local file to prevent captures
-    - chronoslices
--- Version 2.1.0
-
-    - UI to select multiple cameras at once
-    - pip function, optional prefix (ie, one camera output at a time)
--- Version 2.2.0
-
-
---
-    - move and reimplement version check - use google analytics
-    - add donate menu
-    - add donate level in title bar
-    - package with better MEncoder
-
-
-
-
-
-    - test autostart
-    - test all functionality
-    - clean up code everywhere possible
-    - better encoding options - not MEncoder? better compilation of MEncoder?
-        -- write own simple encoder?
-
-"""
-
-
 
 
 
