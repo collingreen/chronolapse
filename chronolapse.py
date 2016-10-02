@@ -462,7 +462,7 @@ class ChronoFrame(chronoFrame):
     def capture(self, force=False):
 
         # check if idle if necessary
-	if not force and self.getConfig('skip_if_idle'):
+        if not force and self.getConfig('skip_if_idle'):
             if self.hasBeenIdle():
                 logging.debug('Skipping Capture - Idle')
                 return
@@ -473,7 +473,8 @@ class ChronoFrame(chronoFrame):
                                 self.settings.timestamp_filename_format)
 
             # use microseconds if capture speed is less than 1
-            if self.countdown < 1:
+            capture_delay = float(self.frequencytext.GetValue())
+            if capture_delay < 1:
                 filename = str( time.time() )
 
         # get sequential filename
