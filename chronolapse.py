@@ -3,7 +3,7 @@
     @author: Collin "Keeyai" Green
     @url: keeyai.com, collingreen.com, chronolapse.com
     @summary:
-        ChronoLapse is a tool for making timelapses.
+        Chronolapse is a tool for making timelapses.
         CL can save both screenshots and webcam captures, and can even do them both
         at the same time so they are 'synced' together. In addition to saving the
         images, CL has some processing tools to compile your images into video,
@@ -11,12 +11,11 @@
     @license: MIT license
 """
 
-VERSION = '2.0.0alpha'
+VERSION = '1.9.0'
 
 import wx
 import wx.lib.masked as masked
 import logging
-
 from easyconfig import EasyConfig
 
 import cv2
@@ -25,7 +24,7 @@ import time, datetime
 
 import tempfile
 import textwrap
-
+import numpy  # so pyinstaller packages it
 import math
 import subprocess
 import urllib, urllib2
@@ -34,70 +33,16 @@ import threading
 
 from PIL import Image, ImageDraw, ImageFont
 
+logging.basicConfig(level=logging.ERROR)
+
+can_check_idle_time = False
+try:
+    import win32api
+    can_check_idle_time = True
+except:
+    pass
+
 from chronolapsegui import *
-
-"""
-
-TODO:
-    X replace optparse with argparse
-    X remove all xml everywhere
-    X add sequential/integer filenames to config persistence
-    X make sequential/integer filename options work
-    X VERIFY all fields get saved and updated correctly
-    X remove all pickle everywhere
-    X fix config file being written to wherever the current working dir is!
-
-    X make video codec stay selected
-    X add command line for sequential image format (defaults to %05d)
-    X remove adjust frame
-
-    X remove keeyai.com
-    X add file menu -> quit
-    X use logging module
-
-    X support selecting cameras -- openCV doesn't do this well - exposed as config
-    X opencv camera captures
-    X sequential timestamps overwriting when only cam (no screenshot)
-
-    X better timestamp options
-    - update icons
-    X clean up windows branching code
-
-    - Variables in save paths %YEAR%, %MONTH%, %DAY%, %HOUR%, %MINUTE%, %SECOND%
-    - Ability to enter Video Length and get FPS calculated
-    - Verify multi monitor + subscreen timestamps are still visible (expect they are cut off)
-    - Verify height setting controls the height of the input, not the distance from the bottom of the screen
--- Version 2.0.0
-
-    - encode to gif - visvis.vvmovie.images2gif import writeGif
-    - use existence of specified local file to prevent captures
-    - chronoslices
--- Version 2.1.0
-
-    - UI to select multiple cameras at once
-    - pip function, optional prefix (ie, one camera output at a time)
--- Version 2.2.0
-
-
---
-    - move and reimplement version check - use google analytics
-    - add donate menu
-    - add donate level in title bar
-    - package with better MEncoder
-
-
-
-
-
-    - test autostart
-    - test all functionality
-    - clean up code everywhere possible
-    - better encoding options - not MEncoder? better compilation of MEncoder?
-        -- write own simple encoder?
-
-"""
-
-
 
 
 
@@ -144,7 +89,7 @@ class ChronoFrame(chronoFrame):
 
         parser.add_argument('--timestamp_filename_format',
                 help="Sets the format string for timestamp image file names",
-                default='%Y-%m-%d %H:%M:%S')
+                default='%Y-%m-%d_%H-%M-%S')
 
         # --verbose and --debug
         parser.add_argument("-v", "--verbose",
@@ -236,6 +181,7 @@ class ChronoFrame(chronoFrame):
                 'screenshot_prefix': 'screen_',
                 'screenshot_format': 'jpg',
                 'screenshot_dual_monitor': False,
+		'skip_if_idle': False,
 
                 'screenshot_subsection': False,
                 'screenshot_subsection_top': '0',
@@ -300,6 +246,7 @@ class ChronoFrame(chronoFrame):
         self._bindUI(self.frequencytext, 'frequency')
         self._bindUI(self.screenshotcheck, 'use_screenshot')
         self._bindUI(self.webcamcheck, 'use_webcam')
+        self._bindUI(self.ignoreidlecheck, 'skip_if_idle')
 
         self._bindUI(self.pipmainimagefoldertext, 'pip_main_folder')
         self._bindUI(self.pippipimagefoldertext, 'pip_pip_folder')
@@ -400,6 +347,9 @@ class ChronoFrame(chronoFrame):
         # check version
         self.checkVersion()
 
+        # for idle checking (win only)
+        self.last_event_info = None
+
         # load icon - #TODO: embed with base64?
         if ON_WINDOWS:
             icon_file = os.path.join(self.CHRONOLAPSEPATH, 'chronolapse.ico')
@@ -497,10 +447,25 @@ class ChronoFrame(chronoFrame):
 
         # Destroy the dialog.
         dlg.Destroy()
-
         return path
 
-    def capture(self):
+    def hasBeenIdle(self):
+        if can_check_idle_time:
+            previous_event_info = self.last_event_info
+            event_info = win32api.GetLastInputInfo()
+            self.last_event_info = event_info
+            if previous_event_info == event_info:
+                return True
+        return False
+
+
+    def capture(self, force=False):
+
+        # check if idle if necessary
+        if not force and self.getConfig('skip_if_idle'):
+            if self.hasBeenIdle():
+                logging.debug('Skipping Capture - Idle')
+                return
 
         # get filename from time
         if self.getConfig('filename_format') == 'timestamp':
@@ -508,7 +473,8 @@ class ChronoFrame(chronoFrame):
                                 self.settings.timestamp_filename_format)
 
             # use microseconds if capture speed is less than 1
-            if self.countdown < 1:
+            capture_delay = float(self.frequencytext.GetValue())
+            if capture_delay < 1:
                 filename = str( time.time() )
 
         # get sequential filename
@@ -896,6 +862,7 @@ Please add write permission and try again.""") % webcam_folder)
 
             # disable config buttons, frequency
             self.screenshotcheck.Disable()
+            self.ignoreidlecheck.Disable()
             self.screenshotconfigurebutton.Disable()
             self.configurewebcambutton.Disable()
             self.webcamcheck.Disable()
@@ -914,6 +881,7 @@ Please add write permission and try again.""") % webcam_folder)
 
             # enable config buttons, frequency
             self.screenshotcheck.Enable()
+            self.ignoreidlecheck.Enable()
             self.screenshotconfigurebutton.Enable()
             self.configurewebcambutton.Enable()
             self.webcamcheck.Enable()
@@ -929,7 +897,7 @@ Please add write permission and try again.""") % webcam_folder)
 
     def forceCapturePressed(self, event):
         # save a capture right now
-        self.capture()
+        self.capture(force=True)
 
     def pipMainImageBrowsePressed(self, event):
         path = self.dirBrowser('Select folder containing main images',
@@ -1627,7 +1595,7 @@ Please add write permission and try again.""") % webcam_folder)
         info = wx.AboutDialogInfo()
         info.Name = "Chronolapse"
         info.Version = self.VERSION
-        info.Copyright = '(C) 2008-2014 Collin Green'
+        info.Copyright = '(C) 2008-2016 Collin Green'
 
         description = """Chronolapse (CL) is a tool for creating time lapses on windows using
 screen captures, webcam captures, or both at the same time. CL also provides
@@ -1638,22 +1606,6 @@ a front end to mencode to take your series of images and turn them into a movie.
         info.Description = '\n'.join(textwrap.wrap(description, 70))
         info.WebSite = ("http://chronolapse.com/", "Chronolapse")
         info.Developers = [ 'Collin "Keeyai" Green']
-
-        if os.path.isfile( os.path.join( self.CHRONOLAPSEPATH, 'license.txt')):
-            licensefile = file(
-                            os.path.join(
-                                self.CHRONOLAPSEPATH,
-                                'license.txt'
-                            ),
-                            'r')
-            licensetext = licensefile.read()
-            licensefile.close()
-        else:
-            licensetext = 'License file not found. Please contact the ' + \
-                            'developers for a copy of the license.'
-
-        licensetext.replace('\n', ' ')
-        info.License = '\n'.join(textwrap.wrap(licensetext,70))
 
         # Then we call wx.AboutBox giving it that info object
         wx.AboutBox(info)
