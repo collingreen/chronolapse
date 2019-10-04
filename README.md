@@ -26,7 +26,27 @@ and some old, unused features pruned away.
 Most significantly, Chronolapse 2.0 uses the OpenCV 
 library to support webcam captures on all platforms.
 
+Requirements
+--------------------
 
+To run:
+
+```
+python3 chronolapsegui.py
+```
+
+
+You need wx, see instructions to download here:
+
+https://wxpython.org/pages/downloads/
+
+Or just:
+
+```
+pip install -U \
+    -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-16.04 \
+    wxPython
+```
 
 Command Line Options
 --------------------
