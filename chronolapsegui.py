@@ -611,7 +611,7 @@ class webcamConfigDialog(wx.Dialog):
 class webcamPreviewDialog(wx.Dialog):
     def __init__(self, *args, **kwds):
         # begin wxGlade: webcamPreviewDialog.__init__
-        kwds["style"] = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER | wx.THICK_FRAME
+        kwds["style"] = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER# | wx.THICK_FRAME
         wx.Dialog.__init__(self, *args, **kwds)
         self.panel_1 = wx.ScrolledWindow(self, wx.ID_ANY, style=wx.TAB_TRAVERSAL)
         self.previewbitmap = wx.StaticBitmap(self.panel_1, wx.ID_ANY, wx.NullBitmap)
