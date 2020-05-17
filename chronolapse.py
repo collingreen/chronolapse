@@ -33,8 +33,6 @@ import threading
 
 from PIL import Image, ImageDraw, ImageFont
 
-logging.basicConfig(level=logging.ERROR)
-
 can_check_idle_time = False
 
 from chronolapsegui import *
@@ -99,12 +97,21 @@ class ChronoFrame(chronoFrame):
 
         # set verbosity on the logging module
         if self.settings.debug:
-            logging.basicConfig(level=logging.DEBUG)
+            logging.basicConfig(
+                level=logging.DEBUG,
+                handlers=[logging.StreamHandler(sys.stdout)]
+            )
             logging.debug("Verbosity set to DEBUG")
 
         elif self.settings.verbose:
-            logging.basicConfig(level=logging.INFO)
+            logging.basicConfig(
+                level=logging.INFO,
+                handlers=[logging.StreamHandler(sys.stdout)]
+            )
             logging.info("Verbosity set to INFO")
+
+        else:
+            logging.basicConfig(level=logging.ERROR)
 
         logging.debug("Parsed command line options")
 
