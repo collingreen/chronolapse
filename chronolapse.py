@@ -14,6 +14,7 @@
 VERSION = '1.9.0'
 
 import wx
+import wx.adv
 import wx.lib.masked as masked
 import logging
 from easyconfig import EasyConfig
@@ -1787,10 +1788,10 @@ class ProgressPanel(wx.Panel):
         dc.EndDrawing()
 
 
-class TaskBarIcon(wx.TaskBarIcon):
+class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def __init__(self, parent, MainFrame, workingdir):
-        wx.TaskBarIcon.__init__(self)
+        wx.adv.TaskBarIcon.__init__(self)
         self.parentApp = parent
         self.MainFrame = MainFrame
         self.wx_id = wx.NewId()
@@ -1843,8 +1844,8 @@ class TaskBarIcon(wx.TaskBarIcon):
             self.MainFrame.Raise()
 
     def CreateMenu(self):
-        self.Bind(wx.EVT_TASKBAR_RIGHT_UP, self.ShowMenu)
-        self.Bind(wx.EVT_TASKBAR_LEFT_DCLICK, self.toggle_window_visibility)
+        self.Bind(wx.adv.EVT_TASKBAR_RIGHT_UP, self.ShowMenu)
+        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DCLICK, self.toggle_window_visibility)
         self.Bind(wx.EVT_MENU, self.toggle_window_visibility, id=self.wx_id)
         self.Bind(wx.EVT_MENU, self.MainFrame.iconClose, id=wx.ID_EXIT)
         if ON_WINDOWS:
