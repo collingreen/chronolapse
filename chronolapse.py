@@ -241,7 +241,6 @@ class ChronoFrame(chronoFrame):
         self._bindUI(self.frequencytext, 'frequency')
         self._bindUI(self.screenshotcheck, 'use_screenshot')
         self._bindUI(self.webcamcheck, 'use_webcam')
-        self._bindUI(self.ignoreidlecheck, 'skip_if_idle')
 
         self._bindUI(self.pipmainimagefoldertext, 'pip_main_folder')
         self._bindUI(self.pippipimagefoldertext, 'pip_pip_folder')
@@ -856,7 +855,6 @@ Please add write permission and try again.""") % webcam_folder)
 
             # disable config buttons, frequency
             self.screenshotcheck.Disable()
-            self.ignoreidlecheck.Disable()
             self.screenshotconfigurebutton.Disable()
             self.configurewebcambutton.Disable()
             self.webcamcheck.Disable()
@@ -875,7 +873,6 @@ Please add write permission and try again.""") % webcam_folder)
 
             # enable config buttons, frequency
             self.screenshotcheck.Enable()
-            self.ignoreidlecheck.Enable()
             self.screenshotconfigurebutton.Enable()
             self.configurewebcambutton.Enable()
             self.webcamcheck.Enable()
