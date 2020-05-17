@@ -27,7 +27,6 @@ import textwrap
 import numpy  # so pyinstaller packages it
 import math
 import subprocess
-import urllib, urllib2
 
 import threading
 
@@ -344,8 +343,6 @@ class ChronoFrame(chronoFrame):
         self.videocodeccombo.SetStringSelection(
             self.getConfig('video_codec', default=video_codecs[0])
         )
-        # check version
-        self.checkVersion()
 
         # for idle checking (win only)
         self.last_event_info = None
@@ -1613,101 +1610,6 @@ a front end to mencode to take your series of images and turn them into a movie.
     def iconClose(self, event):
         logging.debug('Closing from taskbar')
         self.Close(True)
-
-    def checkVersion(self):
-        try:
-            # if it has been more than a week since the last check
-            last_update = self.getConfig('last_update')
-
-            # convert for comparison?
-            parsedtime = time.mktime(time.strptime( last_update, '%Y-%m-%d'))
-
-            # calculate time since last update
-            timesince = time.mktime(time.localtime()) - parsedtime
-
-            if timesince > self.getConfig("update_check_frequency"):
-                # show popup to confirm user wants to allow update checks
-                dlg = wx.MessageDialog(self,
-                        "Do you want Chronolapse to check for updates now?",
-                       'Check for Updates?',
-                       wx.YES_NO
-                       )
-                choice = dlg.ShowModal()
-                dlg.Destroy()
-
-                # if user wants to check
-                if choice == wx.ID_YES:
-
-                    # check URL
-                    request = urllib2.Request(
-                                self.VERSION_CHECK_PATH,
-                                urllib.urlencode([('version',self.VERSION)]))
-                    page = urllib2.urlopen(request)
-
-                    #parse page
-                    content = page.read()
-
-                    version_info = None
-                    try:
-                        version_info = json.loads(content)
-                    except: pass
-
-                    if version_info:
-                        version = version_info.get('version', None)
-                        url = version_info.get('url', None)
-                        update_date = version_info.get('update_date', None)
-
-                        if version:
-                            version_info = self.get_version_info(version)
-                            this_version = self.get_version_info(self.VERSION)
-
-                            update_available = self.compare_version_info(
-                                                    version_info, this_version)
-                            if update_available:
-                                versionmessage = """
-A new version of Chronolapse is available.
-Your current version is %s. The latest available version is %s.
-You can download the new version at:
-%s""" % (self.VERSION, version, url)
-                                dlg = wx.MessageDialog(self, versionmessage,
-                                               'A new version is available',
-                                               wx.OK | wx.ICON_INFORMATION
-                                               )
-                                dlg.ShowModal()
-                                dlg.Destroy()
-
-                            # otherwise notify user and set last_update
-                            else:
-                                dlg = wx.MessageDialog(self,
-                                            "Chronolapse is up to date",
-                                            "Chronolapse is up to date",
-                                            wx.OK | wx.ICON_INFORMATION)
-                                dlg.ShowModal()
-                                dlg.Destroy()
-
-            # reset update time
-            self.updateConfig({'last_update': time.strftime('%Y-%m-%d')})
-
-        except Exception as e:
-            self.showWarning(
-                'Failed to check version',
-                'Failed to check version. %s' % str(e))
-
-    def get_version_info(self, version_string):
-        # try parsing version
-        version_split = version_string.split('.')
-
-        build, major, minor, rev = 0, 0, 0, 0
-        if len(version_split) == 3:
-            build, major, minor = version_split
-        elif len(version_split) == 4:
-            build, major, minor, rev = version_split
-
-        return dict(
-            build = build,
-            major = major,
-            minor = minor,
-            rev = rev)
 
     def compare_version_info(self, version_info, this_version):
         for field in ['build', 'major', 'minor', 'rev']:
