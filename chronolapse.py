@@ -588,7 +588,7 @@ class ChronoFrame(chronoFrame):
         #Create a Bitmap that will later on hold the screenshot image
         #Note that the Bitmap must have a size big enough to hold the screenshot
         #-1 means using the current default colour depth
-        bmp = wx.EmptyBitmap(rect.width, rect.height)
+        bmp = wx.Bitmap(rect.width, rect.height)
 
         #Create a memory DC that will be used for actually taking the screenshot
         memDC = wx.MemoryDC()
