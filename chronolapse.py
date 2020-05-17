@@ -35,11 +35,6 @@ from PIL import Image, ImageDraw, ImageFont
 logging.basicConfig(level=logging.ERROR)
 
 can_check_idle_time = False
-try:
-    import win32api
-    can_check_idle_time = True
-except:
-    pass
 
 from chronolapsegui import *
 
@@ -180,7 +175,7 @@ class ChronoFrame(chronoFrame):
                 'screenshot_prefix': 'screen_',
                 'screenshot_format': 'jpg',
                 'screenshot_dual_monitor': False,
-		'skip_if_idle': False,
+		        'skip_if_idle': False,
 
                 'screenshot_subsection': False,
                 'screenshot_subsection_top': '0',
@@ -448,11 +443,12 @@ class ChronoFrame(chronoFrame):
 
     def hasBeenIdle(self):
         if can_check_idle_time:
-            previous_event_info = self.last_event_info
-            event_info = win32api.GetLastInputInfo()
-            self.last_event_info = event_info
-            if previous_event_info == event_info:
-                return True
+            pass
+            # previous_event_info = self.last_event_info
+            # event_info = win32api.GetLastInputInfo()
+            # self.last_event_info = event_info
+            # if previous_event_info == event_info:
+            #     return True
         return False
 
 
