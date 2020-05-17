@@ -389,79 +389,79 @@ class chronoFrame(wx.Frame):
         # end wxGlade
 
     def exitMenuClicked(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'exitMenuClicked' not implemented!"
+        print("Event handler 'exitMenuClicked' not implemented!")
         event.Skip()
 
     def aboutMenuClicked(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'aboutMenuClicked' not implemented!"
+        print("Event handler 'aboutMenuClicked' not implemented!")
         event.Skip()
 
     def screenshotConfigurePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'screenshotConfigurePressed' not implemented!"
+        print("Event handler 'screenshotConfigurePressed' not implemented!")
         event.Skip()
 
     def webcamConfigurePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'webcamConfigurePressed' not implemented!"
+        print("Event handler 'webcamConfigurePressed' not implemented!")
         event.Skip()
 
     def startCapturePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'startCapturePressed' not implemented!"
+        print("Event handler 'startCapturePressed' not implemented!")
         event.Skip()
 
     def forceCapturePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'forceCapturePressed' not implemented!"
+        print("Event handler 'forceCapturePressed' not implemented!")
         event.Skip()
 
     def pipMainImageBrowsePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'pipMainImageBrowsePressed' not implemented!"
+        print("Event handler 'pipMainImageBrowsePressed' not implemented!")
         event.Skip()
 
     def pipPipImageBrowsePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'pipPipImageBrowsePressed' not implemented!"
+        print("Event handler 'pipPipImageBrowsePressed' not implemented!")
         event.Skip()
 
     def pipOutputBrowsePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'pipOutputBrowsePressed' not implemented!"
+        print("Event handler 'pipOutputBrowsePressed' not implemented!")
         event.Skip()
 
     def createPipPressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'createPipPressed' not implemented!"
+        print("Event handler 'createPipPressed' not implemented!")
         event.Skip()
 
     def videoSourceBrowsePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'videoSourceBrowsePressed' not implemented!"
+        print("Event handler 'videoSourceBrowsePressed' not implemented!")
         event.Skip()
 
     def videoDestinationBrowsePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'videoDestinationBrowsePressed' not implemented!"
+        print("Event handler 'videoDestinationBrowsePressed' not implemented!")
         event.Skip()
 
     def mencoderPathBrowsePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'mencoderPathBrowsePressed' not implemented!"
+        print("Event handler 'mencoderPathBrowsePressed' not implemented!")
         event.Skip()
 
     def framerateTextChanged(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'framerateTextChanged' not implemented!"
+        print("Event handler 'framerateTextChanged' not implemented!")
         event.Skip()
 
     def createVideoPressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'createVideoPressed' not implemented!"
+        print("Event handler 'createVideoPressed' not implemented!")
         event.Skip()
 
     def audioSourceVideoBrowsePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'audioSourceVideoBrowsePressed' not implemented!"
+        print("Event handler 'audioSourceVideoBrowsePressed' not implemented!")
         event.Skip()
 
     def audioSourceBrowsePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'audioSourceBrowsePressed' not implemented!"
+        print("Event handler 'audioSourceBrowsePressed' not implemented!")
         event.Skip()
 
     def audioOutputFolderBrowsePressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'audioOutputFolderBrowsePressed' not implemented!"
+        print("Event handler 'audioOutputFolderBrowsePressed' not implemented!")
         event.Skip()
 
     def createAudioPressed(self, event):  # wxGlade: chronoFrame.<event_handler>
-        print "Event handler 'createAudioPressed' not implemented!"
+        print("Event handler 'createAudioPressed' not implemented!")
         event.Skip()
 
 # end of class chronoFrame
@@ -566,7 +566,7 @@ class screenshotConfigDialog(wx.Dialog):
         # end wxGlade
 
     def screenshotSaveFolderBrowse(self, event):  # wxGlade: screenshotConfigDialog.<event_handler>
-        print "Event handler 'screenshotSaveFolderBrowse' not implemented!"
+        print("Event handler 'screenshotSaveFolderBrowse' not implemented!")
         event.Skip()
 
 # end of class screenshotConfigDialog
@@ -648,11 +648,11 @@ class webcamConfigDialog(wx.Dialog):
         # end wxGlade
 
     def testWebcamPressed(self, event):  # wxGlade: webcamConfigDialog.<event_handler>
-        print "Event handler 'testWebcamPressed' not implemented!"
+        print("Event handler 'testWebcamPressed' not implemented!")
         event.Skip()
 
     def webcamSaveFolderBrowse(self, event):  # wxGlade: webcamConfigDialog.<event_handler>
-        print "Event handler 'webcamSaveFolderBrowse' not implemented!"
+        print("Event handler 'webcamSaveFolderBrowse' not implemented!")
         event.Skip()
 
 # end of class webcamConfigDialog
