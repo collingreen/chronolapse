@@ -1563,7 +1563,7 @@ Please add write permission and try again.""") % webcam_folder)
         if videofolder != destfolder:
             logging.debug(
                     "Moving file from %s to %s" % (
-                                os.path.join(videodir,outfile),
+                                os.path.join(videofolder, outfile),
                                 os.path.join(destfolder, outfile))
                         )
             shutil.move(
