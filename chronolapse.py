@@ -1642,7 +1642,7 @@ class ScreenshotConfigDialog(screenshotConfigDialog):
                             self.GetParent().getConfig('screenshot_save_folder')
                         )
 
-        if path is not '':
+        if path != '':
             self.GetParent().updateConfig({'screenshot_save_folder': path})
             self.screenshotsavefoldertext.SetValue(path)
 
@@ -1668,7 +1668,7 @@ class WebcamConfigDialog(webcamConfigDialog):
                     'Select folder where webcam shots will be saved',
                     self.GetParent().getConfig('webcam_save_folder'))
 
-        if path is not '':
+        if path != '':
             self.webcamsavefoldertext.SetValue(path)
             self.GetParent().updateConfig({'webcam_save_folder': path})
 
