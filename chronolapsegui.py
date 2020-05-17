@@ -458,7 +458,7 @@ class screenshotConfigDialog(wx.Dialog):
         self.timestampcheck.SetValue(1)
         self.screenshot_timestamp_format.SetMinSize((150, -1))
         self.screenshot_timestamp_format.SetToolTip(_("The timestamp format. Passed directly to python's time.strftime function."))
-        self.subsectioncheck.SetToolTip(_("Check to have CL write a timestamp on each capture"))
+        self.subsectioncheck.SetToolTip(_("Check to capture only a subsection of the screen"))
         self.screenshotprefixtext.SetToolTip(_("The file prefix every screenshot should start with"))
         self.screenshotsavefoldertext.SetMinSize((250, -1))
         self.screenshotsavefolderbrowse.SetMinSize((20, -1))
