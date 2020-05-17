@@ -971,7 +971,7 @@ Please add write permission and try again.""") % webcam_folder)
 
         # for all images in main folder
         count = 0
-        for i in xrange( min(len(sourcefiles), len(pipfiles))):
+        for i in range( min(len(sourcefiles), len(pipfiles))):
             sourcefile = sourcefiles[i]
             pipfile = pipfiles[i]
 
