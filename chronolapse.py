@@ -1794,7 +1794,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         wx.adv.TaskBarIcon.__init__(self)
         self.parentApp = parent
         self.MainFrame = MainFrame
-        self.wx_id = wx.NewId()
+        self.wx_id = wx.NewIdRef(count=1)
 
         if ON_WINDOWS:
             icon_file = os.path.join(
