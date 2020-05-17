@@ -91,7 +91,7 @@ class EasyConfig(object):
         Writes the config to self._filepath using self._encode. Does
         ZERO exception handling.
         """
-        with open(self._filepath, 'w+b') as f:
+        with open(self._filepath, 'w+') as f:
             f.write(self._encode())
 
     def _encode(self):
@@ -112,7 +112,7 @@ class EasyConfig(object):
 
         If notify_all is True, callbacks are called for each key.
         """
-        with open(self._filepath, 'rb') as f:
+        with open(self._filepath, 'r') as f:
             config_contents = f.read()
             new_config = {}
             if len(config_contents):
