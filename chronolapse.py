@@ -396,7 +396,7 @@ class ChronoFrame(chronoFrame):
         self.countdown -= 1
 
         # adjust progress bar
-        self.progresspanel.setProgress(1- (self.countdown / float(self.frequencytext.GetValue())))
+        #self.progresspanel.setProgress(1- (self.countdown / float(self.frequencytext.GetValue())))
 
         # on countdown
         if self.countdown <= 0:
@@ -1743,49 +1743,49 @@ class Timer(wx.Timer):
         self.callback()
 
 
-class ProgressPanel(wx.Panel):
+# class ProgressPanel(wx.Panel):
 
-    def __init__(self, *args, **kwds):
-        wx.Panel.__init__(self, *args, **kwds)
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
+#     def __init__(self, *args, **kwds):
+#         wx.Panel.__init__(self, *args, **kwds)
+#         self.Bind(wx.EVT_PAINT, self.OnPaint)
 
-        self.progress = 0
+#         self.progress = 0
 
-    def setProgress(self, progress):
-        self.progress = progress
+#     def setProgress(self, progress):
+#         self.progress = progress
 
-        dc = wx.WindowDC(self)
-        dc.SetPen(wx.Pen(wx.Colour(0,0,255,255)))
-        dc.SetBrush(wx.Brush(wx.Colour(0,0,255,220)))
+#         dc = wx.WindowDC(self)
+#         dc.SetPen(wx.Pen(wx.Colour(0,0,255,255)))
+#         dc.SetBrush(wx.Brush(wx.Colour(0,0,255,220)))
 
-        # build rect
-        width,height = self.GetSizeTuple()
-        size = max(2, (width-10)*self.progress)
-        rect = wx.Rect(5,8, size ,5)
+#         # build rect
+#         width,height = self.GetSizeTuple()
+#         size = max(2, (width-10)*self.progress)
+#         rect = wx.Rect(5,8, size ,5)
 
-        # draw rect
-        dc.Clear()
-        dc.DrawRoundedRectangleRect(rect, 2)
+#         # draw rect
+#         dc.Clear()
+#         dc.DrawRoundedRectangleRect(rect, 2)
 
-    def OnPaint(self, evt):
-        # this doesnt appear to work at all...
-        width,height = self.GetSizeTuple()
+#     def OnPaint(self, evt):
+#         # this doesnt appear to work at all...
+#         width,height = self.GetSizeTuple()
 
-        # get drawing canvas
-        dc = wx.PaintDC(self)
+#         # get drawing canvas
+#         dc = wx.PaintDC(self)
 
-        dc.SetPen(wx.Pen(wx.Colour(0,0,255,255)))
-        dc.SetBrush(wx.Brush(wx.Colour(0,0,255,220)))
+#         dc.SetPen(wx.Pen(wx.Colour(0,0,255,255)))
+#         dc.SetBrush(wx.Brush(wx.Colour(0,0,255,220)))
 
-        # build rect
-        size = max(2, (width-10)*self.progress)
-        rect = wx.Rect(5,8, size ,5)
+#         # build rect
+#         size = max(2, (width-10)*self.progress)
+#         rect = wx.Rect(5,8, size ,5)
 
-        # draw rect
-        dc.Clear()
-        dc.BeginDrawing()
-        dc.DrawRoundedRectangleRect(rect, 2)
-        dc.EndDrawing()
+#         # draw rect
+#         dc.Clear()
+#         dc.BeginDrawing()
+#         dc.DrawRoundedRectangleRect(rect, 2)
+#         dc.EndDrawing()
 
 
 class TaskBarIcon(wx.adv.TaskBarIcon):

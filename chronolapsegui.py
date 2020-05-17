@@ -11,53 +11,6 @@ import gettext
 from gettext import gettext as _
 # end wxGlade
 
-# begin wxGlade: extracode
-class ProgressPanel(wx.Panel):
-
-    def __init__(self, *args, **kwds):
-        wx.Panel.__init__(self, *args, **kwds)
-        self.Bind(wx.EVT_PAINT, self.OnPaint)
-
-        self.progress = 0
-
-    def setProgress(self, progress):
-        self.progress = progress
-
-        dc = wx.WindowDC(self)
-        dc.SetPen(wx.Pen(wx.Colour(0,0,255,255)))
-        dc.SetBrush(wx.Brush(wx.Colour(0,0,255,220)))
-
-        # build rect
-        width,height = self.GetSizeTuple()
-        size = max(2, (width-10)*self.progress)
-        rect = wx.Rect(5,8, size ,5)
-
-        # draw rect
-        dc.Clear()
-        dc.DrawRoundedRectangleRect(rect, 2)
-
-    def OnPaint(self, evt):
-        # this doesnt appear to work at all...
-
-        width,height = self.GetSizeTuple()
-
-        # get drawing shit
-        dc = wx.PaintDC(self)
-
-        dc.SetPen(wx.Pen(wx.Colour(0,0,255,255)))
-        dc.SetBrush(wx.Brush(wx.Colour(0,0,255,220)))
-
-        # build rect
-        size = max(2, (width-10)*self.progress)
-        rect = wx.Rect(5,8, size ,5)
-
-        # draw rect
-        dc.Clear()
-        dc.BeginDrawing()
-        dc.DrawRoundedRectangleRect(rect, 2)
-        dc.EndDrawing()
-# end wxGlade
-
 
 class chronoFrame(wx.Frame):
     def __init__(self, *args, **kwds):
@@ -91,7 +44,6 @@ class chronoFrame(wx.Frame):
         self.ignoreidlecheck = wx.CheckBox(self.notebook_1_capturepane, wx.ID_ANY, _("Skip Capture if Idle"))
         self.startbutton = wx.Button(self.notebook_1_capturepane, wx.ID_ANY, _("Start Capture"))
         self.forcecapturebutton = wx.Button(self.notebook_1_capturepane, wx.ID_ANY, _("Force Capture"))
-        self.progresspanel = ProgressPanel(self.notebook_1_capturepane, wx.ID_ANY)
         self.notebook_1_pippane = wx.Panel(self.notebook_1, wx.ID_ANY)
         self.label_1 = wx.StaticText(self.notebook_1_pippane, wx.ID_ANY, _("Picture in Picture:"))
         self.label_4 = wx.StaticText(self.notebook_1_pippane, wx.ID_ANY, _("Main Image Folder:"))
@@ -281,7 +233,6 @@ class chronoFrame(wx.Frame):
         grid_sizer_26.AddGrowableCol(0)
         grid_sizer_26.AddGrowableCol(1)
         grid_sizer_1.Add(grid_sizer_26, 1, wx.EXPAND, 0)
-        grid_sizer_1.Add(self.progresspanel, 1, wx.EXPAND, 0)
         self.notebook_1_capturepane.SetSizer(grid_sizer_1)
         grid_sizer_1.AddGrowableRow(2)
         grid_sizer_1.AddGrowableCol(0)
