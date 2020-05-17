@@ -84,6 +84,11 @@ class ChronoFrame(chronoFrame):
                 help="Sets the format string for timestamp image file names",
                 default='%Y-%m-%d_%H-%M-%S')
 
+        # webcam device number
+        parser.add_argument('--webcam-device-number',
+                help="Explicitly set webcam device - numbers starting with 0",
+                default=None)
+
         # --verbose and --debug
         parser.add_argument("-v", "--verbose",
                             help="Increase output verbosity",
@@ -665,7 +670,12 @@ class ChronoFrame(chronoFrame):
 
     def getWebcamCapture(self):
         # get the device number from config
-        device_number = self.getConfig('webcam_device_number')
+        command_line_device_number = self.settings.webcam_device_number
+        if command_line_device_number is None:
+            device_number = self.getConfig('webcam_device_number')
+        else:
+            device_number = command_line_device_number
+        logging.info("Webcam capture using device %s" % str(device_number))
 
         # turn on camera, capture, turn off
         cam = cv2.VideoCapture(device_number)

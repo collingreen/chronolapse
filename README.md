@@ -55,6 +55,11 @@ Command Line Options
     using python's datetime.strftime function.
     Defaults to '%Y-%m-%d %H:%M:%S'
 
+- --webcam-device-number
+    Sets the integer device number for the webcam you want to use.
+    This is not a great system but is better than being locked to
+    only the first camera the OS gives us
+
 - -v / --verbose
     Increases command line output
 
