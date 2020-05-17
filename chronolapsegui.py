@@ -22,11 +22,11 @@ class chronoFrame(wx.Frame):
         self.chronoframe_menubar = wx.MenuBar()
         self.file = wx.Menu()
         self.exitmenuitem = wx.MenuItem(self.file, wx.ID_EXIT, _("Exit Chronolapse"), "", wx.ITEM_NORMAL)
-        self.file.AppendItem(self.exitmenuitem)
+        self.file.Append(self.exitmenuitem)
         self.chronoframe_menubar.Append(self.file, _("File"))
         self.aboutmenu = wx.Menu()
         self.aboutmenuitem = wx.MenuItem(self.aboutmenu, wx.ID_ANY, _("About"), _("About Chronolapse"), wx.ITEM_NORMAL)
-        self.aboutmenu.AppendItem(self.aboutmenuitem)
+        self.aboutmenu.Append(self.aboutmenuitem)
         self.chronoframe_menubar.Append(self.aboutmenu, _("About"))
         self.SetMenuBar(self.chronoframe_menubar)
         # Menu Bar end
