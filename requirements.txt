@@ -1,12 +1,17 @@
+altgraph==0.17
 astroid==2.4.1
 colorama==0.4.3
+future==0.18.2
 isort==4.3.21
 lazy-object-proxy==1.4.3
 mccabe==0.6.1
 numpy==1.18.4
 opencv-python==4.2.0.34
+pefile==2019.4.18
 Pillow==7.1.2
+PyInstaller==3.6
 pylint==2.5.2
+pywin32-ctypes==0.2.0
 six==1.14.0
 toml==0.10.1
 wrapt==1.12.1
