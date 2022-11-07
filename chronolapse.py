@@ -14,6 +14,7 @@
 VERSION = '1.9.0'
 
 import wx
+import wx.adv
 import wx.lib.masked as masked
 import logging
 from easyconfig import EasyConfig
@@ -27,7 +28,8 @@ import textwrap
 import numpy  # so pyinstaller packages it
 import math
 import subprocess
-import urllib, urllib2
+import urllib
+import urllib.request
 
 import threading
 
@@ -201,6 +203,8 @@ class ChronoFrame(chronoFrame):
                 'webcam_timestamp_green': 255,
                 'webcam_timestamp_blue': 255,
                 'webcam_device_number': 0,
+                'webcam_resolution_x': 0,
+                'webcam_resolution_y': 0,
 
                 'filename_format': 'timestamp',
 
@@ -232,7 +236,7 @@ class ChronoFrame(chronoFrame):
             try:
                 self.config.load()
                 logging.debug("Loaded config")
-            except IOError, e:
+            except IOError as e:
                 logging.error("Failed to load Config File: %s" % str(e))
                 self.showWarning(
                     "Failed to Load Config",
@@ -494,7 +498,7 @@ class ChronoFrame(chronoFrame):
                         numeric_base = base[len(prefix):]
                         try:
                             highest_number = max(highest_number, int(numeric_base))
-                        except ValueError, e:
+                        except ValueError as e:
                             # ignore files that are not parsable as numbers
                             pass
 
@@ -512,7 +516,7 @@ class ChronoFrame(chronoFrame):
                         numeric_base = base[len(prefix):]
                         try:
                             highest_number = max(highest_number, int(numeric_base))
-                        except ValueError, e:
+                        except ValueError as e:
                             # ignore files that are not parsable as numbers
                             pass
 
@@ -584,7 +588,7 @@ class ChronoFrame(chronoFrame):
                     height3 = max(height-y3, height2-y3)
 
                     rect = wx.Rect(x3, y3, width3, height3)
-            except Exception, e:
+            except Exception as e:
                 self.warning(
                     "Exception while attempting to capture second "
                     + "monitor: %s" % repr(e))
@@ -669,6 +673,14 @@ class ChronoFrame(chronoFrame):
 
         # turn on camera, capture, turn off
         cam = cv2.VideoCapture(device_number)
+
+        resolution_x = int(self.getConfig('webcam_resolution_x'))
+        resolution_y = int(self.getConfig('webcam_resolution_y'))
+        if resolution_x != 0:
+            cam.set( cv2.CAP_PROP_FRAME_WIDTH, resolution_x )
+        if resolution_y != 0:
+            cam.set( cv2.CAP_PROP_FRAME_HEIGHT, resolution_y )
+
         # first read from opencv cam seems unreliable
         result, image = cam.read()
         result, image = cam.read()
@@ -1054,7 +1066,7 @@ Please add write permission and try again.""") % webcam_folder)
                 ctime = os.path.getctime(os.path.join(sourcefolder, sourcefile))
                 os.utime(outpath, (ctime, ctime))
 
-            except Exception, e:
+            except Exception as e:
                 pass
 
         progressdialog.Destroy()
@@ -1267,7 +1279,7 @@ Please add write permission and try again.""") % webcam_folder)
         # change cwd to image folder to stop mencoder bug
         try:
             os.chdir(sourcefolder)
-        except Exception, e:
+        except Exception as e:
             self.showWarning(
                 'CWD Error',
                 "Could not change current directory. %s" % str(e)
@@ -1290,7 +1302,7 @@ Please add write permission and try again.""") % webcam_folder)
 ##            command = '"%s" mf://fps=%s:type=png  -ovc rawrgb -o %s \*.png' % (mencoderpath, fps, outfile)
 ##        else:
 
-        command = ('"%s" mf://%s -mf fps=%s -ovc lavc -lavcopts vcodec=%s -o %s'
+        command = ('"%s" mf://%s -mf fps=%s -ovc lavc -lavcopts vcodec=%s -o "%s"'
                         % (mencoderpath, path, fps, codec, output_filename))
 
         logging.debug("Calling: %s"%command)
@@ -1355,7 +1367,7 @@ Please add write permission and try again.""") % webcam_folder)
             stdout, stderr = proc.communicate()
             self.mencodererror = stderr
             self.returncode = proc.returncode
-        except Exception, e:
+        except Exception as e:
             self.mencodererror = repr(e)
             self.returncode = 1
 
@@ -1445,7 +1457,7 @@ Please add write permission and try again.""") % webcam_folder)
                 os.close(handle)
                 logging.debug('Copying video file to %s' % safevideoname)
                 shutil.copy(videosource, safevideoname)
-            except Exception, e:
+            except Exception as e:
                 self.showWarning('Temp Audio Error',
                                 "Exception while copying audio to video "
                                 + "folder: %s" % repr(e))
@@ -1482,7 +1494,7 @@ Please add write permission and try again.""") % webcam_folder)
         try:
             logging.debug('Changing directory to %s' % videofolder)
             os.chdir( videofolder)
-        except Exception, e:
+        except Exception as e:
             self.showWarning('CWD Error',
                             "Could not change current directory. %s" % repr(e))
 
@@ -1506,7 +1518,7 @@ Please add write permission and try again.""") % webcam_folder)
             os.close(handle)
             logging.debug('Copying audio file to %s' % newaudiopath)
             shutil.copy(audiosource, newaudiopath)
-        except Exception, e:
+        except Exception as e:
             self.showWarning('Temp Audio Error',
                 "Exception while copying audio to video folder: %s" % repr(e))
 
@@ -1537,7 +1549,7 @@ Please add write permission and try again.""") % webcam_folder)
             if newaudiopath != '':
                 try:
                     os.remove(newaudiopath)
-                except Exception, e:
+                except Exception as e:
                     logging.debug(
                         'Exception while deleting temp audio file %s: %s' % (
                                                         newaudiopath, repr(e)))
@@ -1569,7 +1581,7 @@ Please add write permission and try again.""") % webcam_folder)
         if newaudiopath != '':
             try:
                 os.remove(newaudiopath)
-            except Exception, e:
+            except Exception as e:
                 logging.debug('Exception while deleting temp audio file %s: %s'
                                                  % (newaudiopath, repr(e)))
 
@@ -1592,7 +1604,7 @@ Please add write permission and try again.""") % webcam_folder)
             wx.LaunchDefaultBrowser(path)
 
     def aboutMenuClicked(self, event):
-        info = wx.AboutDialogInfo()
+        info = wx.adv.AboutDialogInfo()
         info.Name = "Chronolapse"
         info.Version = self.VERSION
         info.Copyright = '(C) 2008-2016 Collin Green'
@@ -1608,7 +1620,7 @@ a front end to mencode to take your series of images and turn them into a movie.
         info.Developers = [ 'Collin "Keeyai" Green']
 
         # Then we call wx.AboutBox giving it that info object
-        wx.AboutBox(info)
+        wx.adv.AboutBox(info)
 
     def iconClose(self, event):
         logging.debug('Closing from taskbar')
@@ -1639,10 +1651,10 @@ a front end to mencode to take your series of images and turn them into a movie.
                 if choice == wx.ID_YES:
 
                     # check URL
-                    request = urllib2.Request(
+                    request = urllib.request.Request(
                                 self.VERSION_CHECK_PATH,
                                 urllib.urlencode([('version',self.VERSION)]))
-                    page = urllib2.urlopen(request)
+                    page = urllib.request.urlopen(request)
 
                     #parse page
                     content = page.read()
@@ -1688,7 +1700,7 @@ You can download the new version at:
             # reset update time
             self.updateConfig({'last_update': time.strftime('%Y-%m-%d')})
 
-        except Exception, e:
+        except Exception as e:
             self.showWarning(
                 'Failed to check version',
                 'Failed to check version. %s' % str(e))
@@ -1744,7 +1756,7 @@ class ScreenshotConfigDialog(screenshotConfigDialog):
                             self.GetParent().getConfig('screenshot_save_folder')
                         )
 
-        if path is not '':
+        if path != '':
             self.GetParent().updateConfig({'screenshot_save_folder': path})
             self.screenshotsavefoldertext.SetValue(path)
 
@@ -1758,7 +1770,7 @@ class WebcamConfigDialog(webcamConfigDialog):
         try:
             image = self.GetParent().getWebcamCapture()
             self.has_cam = True
-        except Exception, e:
+        except Exception as e:
             self.GetParent().showWarning(
                         'No Webcam Found', 'Could not initialize camera.')
             logging.error(repr(e))
@@ -1770,7 +1782,7 @@ class WebcamConfigDialog(webcamConfigDialog):
                     'Select folder where webcam shots will be saved',
                     self.GetParent().getConfig('webcam_save_folder'))
 
-        if path is not '':
+        if path != '':
             self.webcamsavefoldertext.SetValue(path)
             self.GetParent().updateConfig({'webcam_save_folder': path})
 
@@ -1788,7 +1800,7 @@ class WebcamConfigDialog(webcamConfigDialog):
             # remove the temp file
             try:
                 os.unlink(self.temppath + '.jpg')
-            except Exception, e:
+            except Exception as e:
                 logging.warning(
                 "Failed to delete temp file %s: %s" % (self.temppath, repr(e)))
 
@@ -1822,14 +1834,14 @@ class WebcamPreviewDialog(webcamPreviewDialog):
 
             # try this so WX doesnt freak out if the file isnt a bitmap
             pilimage = Image.open(path)
-            myWxImage = wx.EmptyImage( pilimage.size[0], pilimage.size[1] )
-            myWxImage.SetData( pilimage.convert( 'RGB' ).tostring() )
+            myWxImage = wx.Image( pilimage.size[0], pilimage.size[1] )
+            myWxImage.SetData( pilimage.convert( 'RGB' ).tobytes() )
             bitmap = myWxImage.ConvertToBitmap()
 
             self.previewbitmap.SetBitmap(bitmap)
             self.previewbitmap.CenterOnParent()
 
-        except Exception, e:
+        except Exception as e:
             logging.debug(
                     "Exception while showing camera preview: %s" % repr(e))
 
@@ -1889,13 +1901,13 @@ class ProgressPanel(wx.Panel):
         dc.EndDrawing()
 
 
-class TaskBarIcon(wx.TaskBarIcon):
+class TaskBarIcon(wx.adv.TaskBarIcon):
 
     def __init__(self, parent, MainFrame, workingdir):
-        wx.TaskBarIcon.__init__(self)
+        wx.adv.TaskBarIcon.__init__(self)
         self.parentApp = parent
         self.MainFrame = MainFrame
-        self.wx_id = wx.NewId()
+        self.wx_id = wx.ID_ANY
 
         if ON_WINDOWS:
             icon_file = os.path.join(
@@ -1945,8 +1957,8 @@ class TaskBarIcon(wx.TaskBarIcon):
             self.MainFrame.Raise()
 
     def CreateMenu(self):
-        self.Bind(wx.EVT_TASKBAR_RIGHT_UP, self.ShowMenu)
-        self.Bind(wx.EVT_TASKBAR_LEFT_DCLICK, self.toggle_window_visibility)
+        self.Bind(wx.adv.EVT_TASKBAR_RIGHT_UP, self.ShowMenu)
+        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DCLICK, self.toggle_window_visibility)
         self.Bind(wx.EVT_MENU, self.toggle_window_visibility, id=self.wx_id)
         self.Bind(wx.EVT_MENU, self.MainFrame.iconClose, id=wx.ID_EXIT)
         if ON_WINDOWS:
