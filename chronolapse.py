@@ -343,7 +343,7 @@ class ChronoFrame(chronoFrame):
 
         # fill in codecs available
         video_codecs = [
-            'mpeg4', 'msmpeg4', 'msmpeg4v2', 'wmv1', 'mjpeg', 'h263p']
+            'mpeg4', 'msmpeg4', 'msmpeg4v2', 'wmv1', 'mjpeg', 'h263p', 'h264']
         self.videocodeccombo.SetItems(video_codecs)
         self.videocodeccombo.SetStringSelection(
             self.getConfig('video_codec', default=video_codecs[0])
@@ -1302,8 +1302,12 @@ Please add write permission and try again.""") % webcam_folder)
 ##            command = '"%s" mf://fps=%s:type=png  -ovc rawrgb -o %s \*.png' % (mencoderpath, fps, outfile)
 ##        else:
 
-        command = ('"%s" mf://%s -mf fps=%s -ovc lavc -lavcopts vcodec=%s -o "%s"'
-                        % (mencoderpath, path, fps, codec, output_filename))
+        if codec == 'h264':
+            command = ('"%s" mf://%s -mf fps=%s -ovc x264 -o "%s"'
+                            % (mencoderpath, path, fps, output_filename))
+        else:
+            command = ('"%s" mf://%s -mf fps=%s -ovc lavc -lavcopts vcodec=%s -o "%s"'
+                            % (mencoderpath, path, fps, codec, output_filename))
 
         logging.debug("Calling: %s"%command)
 
